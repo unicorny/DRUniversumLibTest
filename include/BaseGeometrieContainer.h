@@ -13,10 +13,14 @@ public:
 	BaseGeometrieContainer();
 	virtual ~BaseGeometrieContainer();
 
-	virtual void uploadToGPU();
+	virtual DRReturn uploadToGPU(GLenum usage = GL_STATIC_DRAW_ARB);
+	__inline__ GLuint* getBufferIDs() {return mGLBufferIDs;}
+	__inline__ void setRenderMode(GLenum renderMode){mRenderMode = renderMode;}
+	void render();
 protected:
-	GLuint* mGLBuffers;
-	int		mGLBufferCount;
+	GLuint mGLBufferIDs[2];
+	GLuint mVAO;
+	GLenum mRenderMode;
 };
 
 #endif //__MICRO_SPACECRAFT_BASE_GEOMETRIE_CONTAINER
