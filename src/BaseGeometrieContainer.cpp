@@ -66,6 +66,8 @@ DRReturn BaseGeometrieContainer::uploadToGPU(GLenum usage)
 void BaseGeometrieContainer::render()
 {
 	glBindVertexArray (mVAO);
+	glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, mGLBufferIDs[1]);
 	glDrawElements(mRenderMode, mIndiceCount, GL_UNSIGNED_INT, 0);
+	glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, 0);
 }
 
