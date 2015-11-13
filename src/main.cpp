@@ -3,6 +3,7 @@
 
 #include "MicroSpacecraft.h"
 #include "MainRenderCall.h"
+#include "ShaderManager.h"
 #include "controller/InputControls.h"
 #include "controller/GPUScheduler.h"
 #include <sdl/SDL_opengl.h>
@@ -15,6 +16,36 @@ SDL_Window* g_pSDLWindow = NULL;
 SDL_GLContext g_glContext;
 DRVector2  g_v2WindowLength = DRVector2(0.0f);
 
+//********************************************************************************************************************
+const char* DRGetGLErrorText(GLenum eError)
+{
+	switch(eError)
+	{
+	case GL_INVALID_ENUM:		return "GL_INVALID_ENUM";
+	case GL_INVALID_VALUE:		return "GL_INVALID_VALUE";
+	case GL_INVALID_OPERATION:	return "GL_INVALID_OPERATION";
+	case GL_STACK_OVERFLOW:		return "GL_STACK_OVERFLOW";
+	case GL_STACK_UNDERFLOW:	return "GL_STACK_UNDERFLOW";
+	case GL_OUT_OF_MEMORY:		return "GL_OUT_OF_MEMORY";
+    case GL_NO_ERROR:			return "GL_NO_ERROR";
+	default: return "- gl Unknown error-";
+	}
+	return "- error -";
+}
+
+
+DRReturn DRGrafikError(const char* pcErrorMessage)
+{
+	GLenum GLError = glGetError();
+	if(GLError)
+	{
+		UniLib::EngineLog.writeToLog("OpenGL Fehler: %s (%d)", DRGetGLErrorText(GLError), GLError);
+		LOG_ERROR(pcErrorMessage, DR_ERROR);
+	}
+	return DR_OK;
+}
+//******************************************************************************************************
+
 DRReturn load()
 {
 	UniLib::init();
@@ -26,6 +57,8 @@ DRReturn load()
 		LOG_ERROR("Fehler bei SDL Init", DR_ERROR);
 	}
 	EngineLog.writeToLog("SDL-Version: %d", SDL_COMPILEDVERSION);
+
+	ShaderManager::getInstance()->init();
 
 	//Not Exit Funktion festlegen
 	atexit(SDL_Quit);
