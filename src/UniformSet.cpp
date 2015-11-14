@@ -28,6 +28,7 @@ __inline__ void setGlUniform1f(GLint loc, GLfloat* vvalue) {glUniform1fv(loc, 1,
 __inline__ void setGlUniform2f(GLint loc, GLfloat* vvalue) {glUniform2fv(loc, 1, vvalue);}
 __inline__ void setGlUniform3f(GLint loc, GLfloat* vvalue) {glUniform3fv(loc, 1, vvalue);}
 __inline__ void setGlUniform4f(GLint loc, GLfloat* vvalue) {glUniform4fv(loc, 1, vvalue);}
+__inline__ void setGlUniformMatrix4f(GLint loc, GLfloat* vvalue) {glUniformMatrix4fv(loc, 1, false, vvalue);}
 
 __inline__ void setGlUniform1i(GLint loc, GLint* vvalue) {glUniform1iv(loc, 1, vvalue);}
 __inline__ void setGlUniform2i(GLint loc, GLint* vvalue) {glUniform2iv(loc, 1, vvalue);}
@@ -37,6 +38,10 @@ __inline__ void setGlUniform4i(GLint loc, GLint* vvalue) {glUniform4iv(loc, 1, v
 void UniformSet::updateUniforms()
 {
 	lock();
+	if(!isDirty()) {
+		unlock();
+		return;
+	}
 	for(std::map<HASH, UniformEntry*>::iterator it = mUniformEntrys.begin(); it != mUniformEntrys.end(); it++) {
 		UniformEntry* entry = it->second;
 		if(!entry->isDirty() || entry->locations.size() == 0) continue;
@@ -48,6 +53,7 @@ void UniformSet::updateUniforms()
 			case 2: ffunc = setGlUniform2f; break;
 			case 3: ffunc = setGlUniform3f; break;
 			case 4: ffunc = setGlUniform4f; break;
+			case 16: ffunc = setGlUniformMatrix4f; break;
 			}
 		} else {
 			switch(entry->getArraySize()) {
@@ -66,8 +72,6 @@ void UniformSet::updateUniforms()
 		}
 		entry->unsetDirty();
 	}
+	unsetDirty();
 	unlock();
 }
-/*
-int loc = glGetUniformLocation(mProgram, name);
-glUniform1i(loc, data);*/

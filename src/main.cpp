@@ -4,6 +4,7 @@
 #include "MicroSpacecraft.h"
 #include "MainRenderCall.h"
 #include "ShaderManager.h"
+#include "World.h"
 #include "controller/InputControls.h"
 #include "controller/GPUScheduler.h"
 #include <sdl/SDL_opengl.h>
@@ -15,6 +16,7 @@ MainRenderCall mainRenderCall;
 SDL_Window* g_pSDLWindow = NULL;
 SDL_GLContext g_glContext;
 DRVector2  g_v2WindowLength = DRVector2(0.0f);
+World* gWorld = NULL;
 
 //********************************************************************************************************************
 const char* DRGetGLErrorText(GLenum eError)
@@ -57,7 +59,7 @@ DRReturn load()
 		LOG_ERROR("Fehler bei SDL Init", DR_ERROR);
 	}
 	EngineLog.writeToLog("SDL-Version: %d", SDL_COMPILEDVERSION);
-
+	DRFileManager::getSingleton().addOrdner("data/shader");
 	ShaderManager::getInstance()->init();
 
 	//Not Exit Funktion festlegen
@@ -117,6 +119,15 @@ DRReturn load()
 		EngineLog.writeToLog("GLEW Error: %s", glewGetErrorString(status));
 		LOG_ERROR("GLEW Error", DR_ERROR);
 	}
+	// get version info
+	const GLubyte* renderer = glGetString (GL_RENDERER);
+	const GLubyte* version = glGetString (GL_VERSION);
+	printf ("Renderer: %s\n", renderer);
+	printf ("OpenGL version supported %s\n", version);
+
+	// tell GL to only draw onto a pixel if the shape is closer to the viewer
+	glEnable (GL_DEPTH_TEST); // enable depth-testing
+	glDepthFunc (GL_LESS); // depth-testing interprets a smaller value as "closer"
 
 	// sync buffer swap with monitor's vertical refresh rate
 	SDL_GL_SetSwapInterval(1);
@@ -130,11 +141,17 @@ DRReturn load()
 	SDL_GL_GetDrawableSize(g_pSDLWindow, &w, &h);
 	glViewport(0, 0, w, h);
 
+	// World init
+	gWorld = new World();
+	// adding floor
+
+
 	return DR_OK;
 }
 
 void ende()
 {
+	DR_SAVE_DELETE(gWorld);
 	UniLib::exit();
 }
 

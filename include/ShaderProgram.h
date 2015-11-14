@@ -36,6 +36,6 @@ public:
 protected:
 	GLuint mProgram;
 	
-};
+};  
 
 #endif //__MICRO_SPACECRAFT_SHADER_PROGRAM_H
