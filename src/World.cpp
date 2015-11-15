@@ -1,7 +1,10 @@
 #include "World.h"
 #include "controller/GPUScheduler.h"
+#include "controller/Object.h"
+#include "view/Material.h"
 #include "BaseGeometrieContainer.h"
 #include "model/geometrie/BaseGeometrie.h"
+
 #include "UniformSet.h"
 
 using namespace UniLib;
@@ -22,16 +25,24 @@ World::~World()
 	sched->unregisterGPURenderCommand(this, GPU_SCHEDULER_COMMAND_RENDERING);
 	sched->unregisterGPURenderCommand(mPreRenderer, GPU_SCHEDULER_COMMAND_PREPARE_RENDERING);
 	DR_SAVE_DELETE(mPreRenderer);
+	for(std::list<Object*>::iterator it = mGeometrieObjects.begin(); it != mGeometrieObjects.end(); it++) 
+	{
+		DR_SAVE_DELETE(*it);
+	}
+	mGeometrieObjects.clear();
 }
 
 DRReturn World::render(float timeSinceLastFrame)
 {
-	for(std::list<GeometrieObject>::iterator it = mGeometrieObjects.begin(); it != mGeometrieObjects.end();it++)
+	for(std::list<controller::Object*>::iterator it = mGeometrieObjects.begin(); it != mGeometrieObjects.end();it++)
 	{
-		GeometrieObject* g = &(*it);
-		g->shader->bind();
-		BaseGeometrieContainer* conti =  dynamic_cast<BaseGeometrieContainer*>(g->geo->getGeomtrieContainer());
-		conti->render();
+		controller::Object* g = (*it);
+		g->getMaterial()->bind();
+		if(g->getGeometrie()->render()) {
+			LOG_ERROR("error by rendering geometrie", DR_ERROR);
+		}
+		//BaseGeometrieContainer* conti =  dynamic_cast<BaseGeometrieContainer*>(c);
+		//conti->render();
 	}
 	return DR_OK;
 }
@@ -47,10 +58,10 @@ void World::youNeedToLong(float percent)
 	UniLib::EngineLog.writeToLog("to slow: %f", percent);
 }
 
-void World::addStaticGeometrie(model::ShaderProgramPtr shader, model::geometrie::BaseGeometrie* geo)
+void World::addStaticGeometrie(controller::Object* obj)
 {
-	mGeometrieObjects.push_back(GeometrieObject(shader, geo));
-	mPreRenderer->addGeometrieToUpload(dynamic_cast<BaseGeometrieContainer*>(geo->getGeomtrieContainer()));
+	mGeometrieObjects.push_back(obj);
+	mPreRenderer->addGeometrieToUpload(obj->getGeometrie());
 }
 
 // ***************************************************************

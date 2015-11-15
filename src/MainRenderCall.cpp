@@ -11,7 +11,6 @@ MainRenderCall::MainRenderCall()
 DRReturn MainRenderCall::render(float timeSinceLastFrame)
 {
 	//printf("[MainRenderCall::render]\n");
-	glClear( GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT );
 
 	SDL_GL_SwapWindow(g_pSDLWindow);
 
@@ -24,6 +23,31 @@ void MainRenderCall::kicked()
 }
 
 void MainRenderCall::youNeedToLong(float percent) 
+{
+	//printf("[MainRenderCall::youNeedToLong] percent: %f\n", percent*100.0f);
+}
+
+//***********************************************************************************
+PreRenderCall::PreRenderCall()
+{
+
+}
+
+DRReturn PreRenderCall::render(float timeSinceLastFrame)
+{
+	//printf("[MainRenderCall::render]\n");
+	glClear( GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT );
+
+
+	return DR_OK;
+}
+
+void PreRenderCall::kicked()
+{
+	printf("[MainRenderCall::kicked] waaah I was kicked\n");
+}
+
+void PreRenderCall::youNeedToLong(float percent) 
 {
 	//printf("[MainRenderCall::youNeedToLong] percent: %f\n", percent*100.0f);
 }

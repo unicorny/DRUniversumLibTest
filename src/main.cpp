@@ -7,16 +7,25 @@
 #include "World.h"
 #include "controller/InputControls.h"
 #include "controller/GPUScheduler.h"
+#include "controller/Object.h"
+#include "model/geometrie/Plane.h"
+#include "Material.h"
+#include "view/Material.h"
+#include "BaseGeometrieContainer.h"
 #include <sdl/SDL_opengl.h>
 
 
 using namespace UniLib;
 
 MainRenderCall mainRenderCall;
+PreRenderCall  preRenderCall;
 SDL_Window* g_pSDLWindow = NULL;
 SDL_GLContext g_glContext;
 DRVector2  g_v2WindowLength = DRVector2(0.0f);
 World* gWorld = NULL;
+
+GLuint vbo = 0;
+GLuint vao = 0;
 
 //********************************************************************************************************************
 const char* DRGetGLErrorText(GLenum eError)
@@ -48,10 +57,34 @@ DRReturn DRGrafikError(const char* pcErrorMessage)
 }
 //******************************************************************************************************
 
+class rCall: public controller::GPURenderCall 
+{
+public: 
+	virtual DRReturn render(float timeSinceLastFrame)
+	{
+		// wipe the drawing surface clear
+		//glClear (GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+		//glUseProgram (shader_programme);
+		ShaderManager::getInstance()->getShaderProgram("simple.vert", "simple.frag")->bind();
+		glBindVertexArray (vao);
+		// draw points 0-3 from the currently bound VAO withcurrent in-use shader
+		glDrawArrays (GL_TRIANGLES, 0, 3);
+		return DR_OK;
+	}
+	// if render return not DR_OK, Call will be removed from List and kicked will be called
+	virtual void kicked() {}
+	// will be called if render call need to much time
+	// \param percent used up percent time of render main loop
+	virtual void youNeedToLong(float percent) {}
+};
+rCall call;
+
 DRReturn load()
 {
 	UniLib::init();
 	controller::GPUScheduler::getInstance()->registerGPURenderCommand(&mainRenderCall, controller::GPU_SCHEDULER_COMMAND_AFTER_RENDERING);
+	controller::GPUScheduler::getInstance()->registerGPURenderCommand(&preRenderCall, controller::GPU_SCHEDULER_COMMAND_PREPARE_RENDERING);
+	
 	
 	if(SDL_Init(SDL_INIT_VIDEO) < 0)
 	{
@@ -144,10 +177,45 @@ DRReturn load()
 	// World init
 	gWorld = new World();
 	// adding floor
+	controller::Object* floor = new UniLib::controller::Object;
+	view::geometrie::BaseGeometrieContainerPtr ptr(new BaseGeometrieContainer);
+	view::MaterialPtr materialPtr(new Material);
+	//model::geometrie::Plane plane(ptr);
+	//plane.generateVertices(model::geometrie::GEOMETRIE_VERTICES);
+	ptr->addVector(DRVector3(0.0f, 0.5f, 0.0f), model::geometrie::GEOMETRIE_VERTICES);
+	ptr->addVector(DRVector3(0.5f, -0.5f, 0.0f), model::geometrie::GEOMETRIE_VERTICES);
+	ptr->addVector(DRVector3(-0.5f, -0.5f, 0.0f), model::geometrie::GEOMETRIE_VERTICES);
+	ptr->addVector(DRVector3(0.0f, -1.5f, 0.0f), model::geometrie::GEOMETRIE_VERTICES);
+	ptr->addIndice(0); ptr->addIndice(1); ptr->addIndice(2);// ptr->addIndice(3);
+	ptr->copyToFastAccess();
+	materialPtr->setShaderProgram(ShaderManager::getInstance()->getShaderProgram("simple.vert", "simple.frag"));
 
+	floor->setGeometrie(ptr);
+	floor->setMaterial(materialPtr);
+	gWorld->addStaticGeometrie(floor);
+	//*/
+	/*
+	GLfloat points[] = {
+		0.0f, 0.5f, 0.0f,
+		0.5f, -0.5f, 0.0f,
+		-0.5f, -0.5f, 0.0f
+	};
+	glGenBuffers (1, &vbo);
+	glBindBuffer (GL_ARRAY_BUFFER, vbo);
+	glBufferData (GL_ARRAY_BUFFER, sizeof (points), points, GL_STATIC_DRAW);
 
+	glGenVertexArrays (1, &vao);
+	glBindVertexArray (vao);
+	glEnableVertexAttribArray (0);
+	glBindBuffer (GL_ARRAY_BUFFER, vbo);
+	glVertexAttribPointer (0, 3, GL_FLOAT, GL_FALSE, 0, NULL);
+
+	controller::GPUScheduler::getInstance()->registerGPURenderCommand(&call, controller::GPU_SCHEDULER_COMMAND_RENDERING);
+	*/
 	return DR_OK;
 }
+
+
 
 void ende()
 {

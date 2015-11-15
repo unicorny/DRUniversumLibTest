@@ -17,6 +17,7 @@ public:
 
 	__inline__ GLuint getShader() {return mShaderID;}
 
+	static GLenum getShaderType(UniLib::model::ShaderType type);
 protected:
 	GLuint mShaderID;
 	
@@ -33,6 +34,8 @@ public:
 	virtual void unbind();
 
 	__inline__ GLuint getProgram() {return mProgram;}
+
+	
 protected:
 	GLuint mProgram;
 	

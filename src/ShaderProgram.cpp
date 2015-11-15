@@ -23,7 +23,8 @@ DRReturn Shader::init(const char* shaderFile, UniLib::model::ShaderType shaderTy
 	memset(str, 0, 4096);
 
 	// Create the shader.
-	mShaderID = glCreateShader(shaderType);
+	
+	mShaderID = glCreateShader(getShaderType(shaderType));
 	UniLib::EngineLog.writeToLog("shaderID: %d", mShaderID);
 
 	unsigned char* shaderAssembly = readShaderFile( shaderFile );
@@ -51,6 +52,20 @@ DRReturn Shader::init(const char* shaderFile, UniLib::model::ShaderType shaderTy
 	if(DRGrafikError("Shader::init create Shader")) LOG_WARNING("Fehler bei shader init");	
 
 	return DR_OK;
+}
+
+GLenum Shader::getShaderType(UniLib::model::ShaderType type)
+{
+	using namespace UniLib::model;
+	switch(type) {
+	case SHADER_VERTEX: return GL_VERTEX_SHADER; 
+	case SHADER_FRAGMENT: return GL_FRAGMENT_SHADER;
+	case SHADER_GEOMETRIE: return GL_GEOMETRY_SHADER;
+	case SHADER_TESSELATION: return GL_TESS_CONTROL_SHADER;
+	case SHADER_TESSELATION_EVALUATION: return GL_TESS_EVALUATION_SHADER;
+	default: return 0;
+	}
+	return 0;
 }
 
 // *********************************************************************************************************************
@@ -109,6 +124,7 @@ DRReturn ShaderProgram::init(UniLib::model::ShaderPtr vertexShader, UniLib::mode
 	}
 
 	if(DRGrafikError("ShaderProgram::init create programm")) LOG_WARNING("Fehler bei shader init");
+	return DR_OK;
 }
 
 void ShaderProgram::bind() const

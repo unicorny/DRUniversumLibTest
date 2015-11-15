@@ -5,7 +5,6 @@
 #include "controller/GPUScheduler.h"
 #include "model/ShaderProgram.h"
 
-
 class WorldPreRender;
 class UniformSet;
 class ShaderProgram;
@@ -17,6 +16,16 @@ namespace UniLib {
 			class BaseGeometrie;
 		}
 	}
+	namespace controller {
+		class Object;
+	}
+	namespace view {
+		namespace geometrie {
+			class BaseGeometrieContainer;
+			typedef DRResourcePtr<BaseGeometrieContainer> BaseGeometrieContainerPtr;
+		}
+	}
+	
 }
 
 class World : public UniLib::controller::GPURenderCall
@@ -25,7 +34,7 @@ public:
 	World();
 	~World();
 
-	void addStaticGeometrie(UniLib::model::ShaderProgramPtr shader, UniLib::model::geometrie::BaseGeometrie* geo);
+	void addStaticGeometrie(UniLib::controller::Object* obj);
 	
 	virtual DRReturn render(float timeSinceLastFrame);
 	// if render return not DR_OK, Call will be removed from List and kicked will be called
@@ -36,13 +45,7 @@ public:
 protected:
 	WorldPreRender* mPreRenderer;
 
-	struct GeometrieObject {
-		GeometrieObject(UniLib::model::ShaderProgramPtr shader, UniLib::model::geometrie::BaseGeometrie* geo)
-			: shader(shader), geo(geo) {}
-		UniLib::model::ShaderProgramPtr shader;
-		UniLib::model::geometrie::BaseGeometrie* geo;
-	};
-	std::list<GeometrieObject> mGeometrieObjects;
+	std::list<UniLib::controller::Object*> mGeometrieObjects;
 	
 };
 
@@ -61,12 +64,12 @@ public:
 
 	__inline__ UniformSet* getUniformSet() {return mWorldUniforms;}
 
-	__inline__ void addGeometrieToUpload(BaseGeometrieContainer* geo) {mWaitingForUpload.push(geo);}
+	__inline__ void addGeometrieToUpload(UniLib::view::geometrie::BaseGeometrieContainerPtr geo) {mWaitingForUpload.push(geo);}
 
 protected:
 	World* mParent;
 	UniformSet* mWorldUniforms;
-	std::queue<BaseGeometrieContainer*> mWaitingForUpload;
+	std::queue<UniLib::view::geometrie::BaseGeometrieContainerPtr> mWaitingForUpload;
 };
 
 #endif //__MICRO_SPACECRAFT_WORLD_H 
