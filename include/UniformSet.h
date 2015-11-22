@@ -14,12 +14,12 @@ public:
 	virtual ~UniformSet();
 
 	// must be called from render thread
-	DRReturn addLocationToUniform(std::string& name, ShaderProgram* program);
+	DRReturn addLocationToUniform(const char* name, ShaderProgram* program);
 	// must be called from render thread
-	DRReturn removeLocationFromUniform(std::string& name, ShaderProgram* program);
+	DRReturn removeLocationFromUniform(const char* name, ShaderProgram* program);
 
-	// must be called from render thread
-	void updateUniforms();
+	// must be called from render thread, after binding shader
+	void updateUniforms(ShaderProgram* program);
 
 protected:
 	

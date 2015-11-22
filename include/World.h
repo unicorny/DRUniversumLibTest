@@ -16,10 +16,9 @@ namespace UniLib {
 			class BaseGeometrie;
 		}
 	}
-	namespace controller {
-		class Object;
-	}
+
 	namespace view {
+		class VisibleNode;
 		namespace geometrie {
 			class BaseGeometrieContainer;
 			typedef DRResourcePtr<BaseGeometrieContainer> BaseGeometrieContainerPtr;
@@ -34,7 +33,7 @@ public:
 	World();
 	~World();
 
-	void addStaticGeometrie(UniLib::controller::Object* obj);
+	void addStaticGeometrie(UniLib::view::VisibleNode* obj);
 	
 	virtual DRReturn render(float timeSinceLastFrame);
 	// if render return not DR_OK, Call will be removed from List and kicked will be called
@@ -44,8 +43,8 @@ public:
 	virtual void youNeedToLong(float percent);
 protected:
 	WorldPreRender* mPreRenderer;
-
-	std::list<UniLib::controller::Object*> mGeometrieObjects;
+	UniformSet* mWorldUniforms;
+	std::list<UniLib::view::VisibleNode*> mGeometrieObjects;
 	
 };
 
@@ -62,13 +61,10 @@ public:
 	// \param percent used up percent time of render main loop
 	virtual void youNeedToLong(float percent);
 
-	__inline__ UniformSet* getUniformSet() {return mWorldUniforms;}
-
 	__inline__ void addGeometrieToUpload(UniLib::view::geometrie::BaseGeometrieContainerPtr geo) {mWaitingForUpload.push(geo);}
 
 protected:
 	World* mParent;
-	UniformSet* mWorldUniforms;
 	std::queue<UniLib::view::geometrie::BaseGeometrieContainerPtr> mWaitingForUpload;
 };
 

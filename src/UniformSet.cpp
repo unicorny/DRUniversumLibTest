@@ -12,15 +12,15 @@ UniformSet::~UniformSet()
 
 }
 
-DRReturn UniformSet::addLocationToUniform(std::string& name, ShaderProgram* program)
+DRReturn UniformSet::addLocationToUniform(const char* name, ShaderProgram* program)
 {
 	assert(program != NULL && program->getProgram() != 0);
-	return addUniformMapping(name, (void*)glGetUniformLocation(program->getProgram(), name.data()));
+	return addUniformMapping(name, (void*)glGetUniformLocation(program->getProgram(), name), program->getProgram());
 }
-DRReturn UniformSet::removeLocationFromUniform(std::string& name, ShaderProgram* program)
+DRReturn UniformSet::removeLocationFromUniform(const char* name, ShaderProgram* program)
 {
 	assert(program != NULL && program->getProgram() != 0);
-	return removeUniformMapping(name, (void*)glGetUniformLocation(program->getProgram(), name.data()));
+	return removeUniformMapping(name, program->getProgram());
 }
 // uniform update
 // for function pointer
@@ -35,7 +35,7 @@ __inline__ void setGlUniform2i(GLint loc, GLint* vvalue) {glUniform2iv(loc, 1, v
 __inline__ void setGlUniform3i(GLint loc, GLint* vvalue) {glUniform3iv(loc, 1, vvalue);}
 __inline__ void setGlUniform4i(GLint loc, GLint* vvalue) {glUniform4iv(loc, 1, vvalue);}
 
-void UniformSet::updateUniforms()
+void UniformSet::updateUniforms(ShaderProgram* program)
 {
 	lock();
 	if(!isDirty()) {
@@ -44,7 +44,8 @@ void UniformSet::updateUniforms()
 	}
 	for(std::map<HASH, UniformEntry*>::iterator it = mUniformEntrys.begin(); it != mUniformEntrys.end(); it++) {
 		UniformEntry* entry = it->second;
-		if(!entry->isDirty() || entry->locations.size() == 0) continue;
+		UniformEntry::Location* l = &entry->locations[program->getProgram()];
+		if(!l->dirty) continue;
 		void (*ffunc)(GLint, GLfloat*) = NULL;
 		void (*ifunc)(GLint, GLint*) = NULL;
 		if(entry->isFloat()) {
@@ -63,15 +64,15 @@ void UniformSet::updateUniforms()
 			case 4: ifunc = setGlUniform4i; break;
 			}
 		}
-		for(std::list<void*>::iterator it = entry->locations.begin(); it != entry->locations.end(); it++) {
-			if(entry->isFloat()) {
-				ffunc((int)(*it), entry->floatArray);
-			} else {
-				ifunc((int)(*it), entry->intArray);
-			}
+		
+		
+		if(entry->isFloat()) {
+			ffunc((int)(l->location), entry->floatArray);
+		} else {
+			ifunc((int)(l->location), entry->intArray);
 		}
-		entry->unsetDirty();
+		l->dirty = false;
 	}
-	unsetDirty();
+	//unsetDirty();
 	unlock();
 }

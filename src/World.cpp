@@ -1,9 +1,13 @@
+#include "MicroSpacecraft.h"
+
 #include "World.h"
 #include "controller/GPUScheduler.h"
-#include "controller/Object.h"
+#include "controller/InputCamera.h"
+#include "view/VisibleNode.h"
 #include "view/Material.h"
 #include "BaseGeometrieContainer.h"
 #include "model/geometrie/BaseGeometrie.h"
+#include "ShaderProgram.h"
 
 #include "UniformSet.h"
 
@@ -12,11 +16,12 @@ using namespace controller;
 
 
 World::World()
-	:mPreRenderer(new WorldPreRender(this))
+	:mPreRenderer(new WorldPreRender(this)), mWorldUniforms(new UniformSet)
 {
 	GPUScheduler* sched = GPUScheduler::getInstance();
 	sched->registerGPURenderCommand(this, GPU_SCHEDULER_COMMAND_RENDERING);
 	sched->registerGPURenderCommand(mPreRenderer, GPU_SCHEDULER_COMMAND_PREPARE_RENDERING);
+	mWorldUniforms->setUniform("view", DRMatrix::identity());
 }
 
 World::~World()
@@ -25,19 +30,24 @@ World::~World()
 	sched->unregisterGPURenderCommand(this, GPU_SCHEDULER_COMMAND_RENDERING);
 	sched->unregisterGPURenderCommand(mPreRenderer, GPU_SCHEDULER_COMMAND_PREPARE_RENDERING);
 	DR_SAVE_DELETE(mPreRenderer);
-	for(std::list<Object*>::iterator it = mGeometrieObjects.begin(); it != mGeometrieObjects.end(); it++) 
+	for(std::list<view::VisibleNode*>::iterator it = mGeometrieObjects.begin(); it != mGeometrieObjects.end(); it++) 
 	{
 		DR_SAVE_DELETE(*it);
 	}
 	mGeometrieObjects.clear();
+	DR_SAVE_DELETE(mWorldUniforms);
 }
 
 DRReturn World::render(float timeSinceLastFrame)
 {
-	for(std::list<controller::Object*>::iterator it = mGeometrieObjects.begin(); it != mGeometrieObjects.end();it++)
+	mWorldUniforms->setUniform("view", gInputCamera->getCameraMatrix());
+	for(std::list<view::VisibleNode*>::iterator it = mGeometrieObjects.begin(); it != mGeometrieObjects.end();it++)
 	{
-		controller::Object* g = (*it);
+		view::VisibleNode* g = (*it);
+		g->calculateMatrix();
 		g->getMaterial()->bind();
+		model::ShaderProgram* s = g->getMaterial()->getShaderProgram();
+		mWorldUniforms->updateUniforms((ShaderProgram*)s);
 		if(g->getGeometrie()->render()) {
 			LOG_ERROR("error by rendering geometrie", DR_ERROR);
 		}
@@ -58,15 +68,17 @@ void World::youNeedToLong(float percent)
 	UniLib::EngineLog.writeToLog("to slow: %f", percent);
 }
 
-void World::addStaticGeometrie(controller::Object* obj)
+void World::addStaticGeometrie(view::VisibleNode* obj)
 {
 	mGeometrieObjects.push_back(obj);
 	mPreRenderer->addGeometrieToUpload(obj->getGeometrie());
+	model::ShaderProgram* program = obj->getMaterial()->getShaderProgram();
+	mWorldUniforms->addLocationToUniform("view", dynamic_cast<ShaderProgram*>(program));
 }
 
 // ***************************************************************
 WorldPreRender::WorldPreRender(World* parent)
-	: mParent(parent), mWorldUniforms(new UniformSet)
+	: mParent(parent)
 {
 
 }
@@ -81,7 +93,6 @@ DRReturn WorldPreRender::render(float timeSinceLastFrame)
 		mWaitingForUpload.front()->uploadToGPU();
 		mWaitingForUpload.pop();
 	}
-	mWorldUniforms->updateUniforms();
 	return DR_OK;
 }
 // if render return not DR_OK, Call will be removed from List and kicked will be called

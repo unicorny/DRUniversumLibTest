@@ -40,6 +40,7 @@ DRReturn BaseGeometrieContainer::uploadToGPU()
 
 	glBindVertexArray (mVAO);
 	glEnableVertexAttribArray(0);
+	glEnableVertexAttribArray(1);
 	glBindBuffer( GL_ARRAY_BUFFER, mGLBufferIDs[0]); 
 
 	int offset = 0;
@@ -58,7 +59,7 @@ DRReturn BaseGeometrieContainer::uploadToGPU()
 			else if(x & geometrie::GEOMETRIE_4DVECTOR) {
 				componentCount = 4;
 			}
-			glVertexAttribPointer(i, componentCount, GL_FLOAT, GL_FALSE, mVertexSize-componentCount, (GLvoid *)offset);
+			glVertexAttribPointer(i, componentCount, GL_FLOAT, GL_FALSE, (mVertexSize)*sizeof(GLfloat), (GLvoid *)(offset*sizeof(GLfloat)));
 			i++;
 			offset += componentCount;
 		}
