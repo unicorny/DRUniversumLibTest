@@ -44,6 +44,7 @@ void UniformSet::updateUniforms(ShaderProgram* program)
 	}
 	for(std::map<HASH, UniformEntry*>::iterator it = mUniformEntrys.begin(); it != mUniformEntrys.end(); it++) {
 		UniformEntry* entry = it->second;
+		if(entry->locations.find(program->getProgram()) == entry->locations.end()) continue;
 		UniformEntry::Location* l = &entry->locations[program->getProgram()];
 		if(!l->dirty) continue;
 		void (*ffunc)(GLint, GLfloat*) = NULL;

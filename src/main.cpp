@@ -233,32 +233,27 @@ DRReturn load()
 
 	floor->setGeometrie(ptr);
 	floor->setMaterial(materialPtr);
+	floor->getPosition()->setPosition(DRVector3(0.0f, 20.0f, 0.0f));
 	gWorld->addStaticGeometrie(floor);
 
+	ptr = view::geometrie::BaseGeometrieContainerPtr(new BaseGeometrieContainer);
+	model::geometrie::Plane plane(ptr);
+	plane.generateVertices(model::geometrie::GEOMETRIE_VERTICES);
+	floor = new view::VisibleNode;
+	ptr->copyToFastAccess();
+	materialPtr = view::MaterialPtr(new Material);
+	materialPtr->setShaderProgram(ShaderManager::getInstance()->getShaderProgram("color.vert", "color.frag"));
+	floor->setMaterial(materialPtr);
+	floor->setGeometrie(ptr);
+	model::Position* pos = floor->getPosition();
+	pos->setScale(DRVector3(400.0f));
+	pos->setPosition(DRVector3(-200.0f, -50.0f, -200.0f));
+	gWorld->addStaticGeometrie(floor);
 	// Kamera
 	gInputCamera = new controller::InputCamera(80.0f, 1.0f, 45.0f);
 	//gInputCamera->getPosition()->setPosition(DRVector3(0.0f, 0.0f, -400.0f));
 	gInputCamera->setAspectRatio(g_v2WindowLength.x / g_v2WindowLength.y);
 	gInputCamera->setFarClipping(1000.0f);
-	//*/
-	/*
-	GLfloat points[] = {
-		0.0f, 0.5f, 0.0f,
-		0.5f, -0.5f, 0.0f,
-		-0.5f, -0.5f, 0.0f
-	};
-	glGenBuffers (1, &vbo);
-	glBindBuffer (GL_ARRAY_BUFFER, vbo);
-	glBufferData (GL_ARRAY_BUFFER, sizeof (points), points, GL_STATIC_DRAW);
-
-	glGenVertexArrays (1, &vao);
-	glBindVertexArray (vao);
-	glEnableVertexAttribArray (0);
-	glBindBuffer (GL_ARRAY_BUFFER, vbo);
-	glVertexAttribPointer (0, 3, GL_FLOAT, GL_FALSE, 0, NULL);
-
-	controller::GPUScheduler::getInstance()->registerGPURenderCommand(&call, controller::GPU_SCHEDULER_COMMAND_RENDERING);
-	*/
 	return DR_OK;
 }
 
