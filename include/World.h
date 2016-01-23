@@ -15,14 +15,14 @@ namespace UniLib {
 		namespace geometrie {
 			class BaseGeometrie;
 		}
+		class BlockSektor;
 	}
 
 	namespace view {
 		class VisibleNode;
-		namespace geometrie {
-			class BaseGeometrieContainer;
-			typedef DRResourcePtr<BaseGeometrieContainer> BaseGeometrieContainerPtr;
-		}
+		class Geometrie;
+		typedef DRResourcePtr<Geometrie> GeometriePtr;
+		
 	}
 	
 }
@@ -45,6 +45,8 @@ protected:
 	WorldPreRender* mPreRenderer;
 	UniformSet* mWorldUniforms;
 	std::list<UniLib::view::VisibleNode*> mGeometrieObjects;
+	//start sektor
+	UniLib::model::BlockSektor* mBlockStartSektor;
 	
 };
 
@@ -61,11 +63,11 @@ public:
 	// \param percent used up percent time of render main loop
 	virtual void youNeedToLong(float percent);
 
-	__inline__ void addGeometrieToUpload(UniLib::view::geometrie::BaseGeometrieContainerPtr geo) {mWaitingForUpload.push(geo);}
+	__inline__ void addGeometrieToUpload(UniLib::view::GeometriePtr geo) {mWaitingForUpload.push(geo);}
 
 protected:
 	World* mParent;
-	std::queue<UniLib::view::geometrie::BaseGeometrieContainerPtr> mWaitingForUpload;
+	std::queue<UniLib::view::GeometriePtr> mWaitingForUpload;
 };
 
 #endif //__MICRO_SPACECRAFT_WORLD_H 

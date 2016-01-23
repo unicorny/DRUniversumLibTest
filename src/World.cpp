@@ -5,8 +5,10 @@
 #include "controller/InputCamera.h"
 #include "view/VisibleNode.h"
 #include "view/Material.h"
-#include "BaseGeometrieContainer.h"
+#include "view/BlockSector.h"
+#include "Geometrie.h"
 #include "model/geometrie/BaseGeometrie.h"
+#include "model/BlockSektor.h"
 #include "ShaderProgram.h"
 
 #include "UniformSet.h"
@@ -23,6 +25,11 @@ World::World()
 	sched->registerGPURenderCommand(mPreRenderer, GPU_SCHEDULER_COMMAND_PREPARE_RENDERING);
 	mWorldUniforms->setUniform("view", DRMatrix::identity());
 	mWorldUniforms->setUniform("time", 0.0f);
+
+	view::BlockSektor* view = new view::BlockSektor();
+	mBlockStartSektor = new model::BlockSektor(view);
+	view->setSektorModel(mBlockStartSektor);
+	
 }
 
 World::~World()
@@ -37,6 +44,11 @@ World::~World()
 	}
 	mGeometrieObjects.clear();
 	DR_SAVE_DELETE(mWorldUniforms);
+
+	view::Sektor* vb = mBlockStartSektor->getSektorView();
+	DR_SAVE_DELETE(vb);
+	DR_SAVE_DELETE(mBlockStartSektor);
+	mBlockStartSektor = NULL;
 }
 
 DRReturn World::render(float timeSinceLastFrame)

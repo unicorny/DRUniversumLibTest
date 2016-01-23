@@ -3,15 +3,18 @@
 
 #include "MicroSpacecraft.h"
 #include "MainRenderCall.h"
-#include "ShaderManager.h"
 #include "World.h"
+#include "BindToRender.h"
 #include "controller/InputControls.h"
 #include "controller/GPUScheduler.h"
+#include "controller/ShaderManager.h"
+#include "controller/BlockMaterialManager.h"
+#include "controller/CPUSheduler.h"
 #include "view/VisibleNode.h"
+#include "Geometrie.h"
 #include "model/geometrie/Plane.h"
 #include "Material.h"
 #include "view/Material.h"
-#include "BaseGeometrieContainer.h"
 
 #include "controller/InputCamera.h"
 #include <sdl/SDL_opengl.h>
@@ -23,12 +26,12 @@ MainRenderCall mainRenderCall;
 PreRenderCall  preRenderCall;
 SDL_Window* g_pSDLWindow = NULL;
 controller::InputCamera* gInputCamera = NULL;
+controller::CPUSheduler* gCPUScheduler = NULL;
 SDL_GLContext g_glContext;
 DRVector2  g_v2WindowLength = DRVector2(0.0f);
 World* gWorld = NULL;
+static BindToRender gBindToRender;
 
-GLuint vbo = 0;
-GLuint vao = 0;
 
 //********************************************************************************************************************
 const char* DRGetGLErrorText(GLenum eError)
@@ -60,31 +63,12 @@ DRReturn DRGrafikError(const char* pcErrorMessage)
 }
 //******************************************************************************************************
 
-class rCall: public controller::GPURenderCall 
-{
-public: 
-	virtual DRReturn render(float timeSinceLastFrame)
-	{
-		// wipe the drawing surface clear
-		//glClear (GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
-		//glUseProgram (shader_programme);
-		ShaderManager::getInstance()->getShaderProgram("simple.vert", "simple.frag")->bind();
-		glBindVertexArray (vao);
-		// draw points 0-3 from the currently bound VAO withcurrent in-use shader
-		glDrawArrays (GL_TRIANGLES, 0, 3);
-		return DR_OK;
-	}
-	// if render return not DR_OK, Call will be removed from List and kicked will be called
-	virtual void kicked() {}
-	// will be called if render call need to much time
-	// \param percent used up percent time of render main loop
-	virtual void youNeedToLong(float percent) {}
-};
-rCall call;
 
 DRReturn load()
 {
+	
 	UniLib::init();
+	UniLib::setBindToRenderer(&gBindToRender);
 	controller::GPUScheduler::getInstance()->registerGPURenderCommand(&mainRenderCall, controller::GPU_SCHEDULER_COMMAND_AFTER_RENDERING);
 	controller::GPUScheduler::getInstance()->registerGPURenderCommand(&preRenderCall, controller::GPU_SCHEDULER_COMMAND_PREPARE_RENDERING);
 	
@@ -110,7 +94,11 @@ DRReturn load()
 	}
 	EngineLog.writeToLog("SDL-Version: %d", SDL_COMPILEDVERSION);
 	DRFileManager::getSingleton().addOrdner("data/shader");
-	ShaderManager::getInstance()->init();
+	DRFileManager::getSingleton().addOrdner("data/material");
+	DRFileManager::getSingleton().addOrdner("data/languages");
+	controller::ShaderManager::getInstance()->init();
+	gCPUScheduler = new controller::CPUSheduler(4, "mainSch");
+	controller::BlockMaterialManager::getInstance()->initAsyn("defaultMaterials.json", gCPUScheduler);
 
 	//Not Exit Funktion festlegen
 	atexit(SDL_Quit);
@@ -196,53 +184,17 @@ DRReturn load()
 	g_v2WindowLength.x = static_cast<float>(w);
 	g_v2WindowLength.y = static_cast<float>(h);
 
+	
+
 	// World init
 	gWorld = new World();
+
 	// adding floor
+	Geometrie* geo = new Geometrie(new model::geometrie::Plane(model::geometrie::GEOMETRIE_VERTICES));
+	view::GeometriePtr ptr(geo);
 	view::VisibleNode* floor = new view::VisibleNode;
-	view::geometrie::BaseGeometrieContainerPtr ptr(new BaseGeometrieContainer);
-	view::MaterialPtr materialPtr(new Material);
-	//model::geometrie::Plane plane(ptr);
-	//plane.generateVertices(model::geometrie::GEOMETRIE_VERTICES);
-	ptr->addVector(DRVector3(0.0f, 50.0f, -50.0f), model::geometrie::GEOMETRIE_VERTICES);
-	ptr->addVector(DRVector3(50.0f, -50.0f, -50.0f), model::geometrie::GEOMETRIE_VERTICES);
-	ptr->addVector(DRVector3(-50.0f, -50.0f, -50.0f), model::geometrie::GEOMETRIE_VERTICES);
-	//ptr->addVector(DRVector3(0.0f, -1.5f, 0.0f), model::geometrie::GEOMETRIE_VERTICES);
-	ptr->addVector(DRColor(1.0f, 0.0f, 0.0f), model::geometrie::GEOMETRIE_COLORS);
-	ptr->addVector(DRColor(0.0f, 1.0f, 0.0f), model::geometrie::GEOMETRIE_COLORS);
-	ptr->addVector(DRColor(0.0f, 0.0f, 1.0f), model::geometrie::GEOMETRIE_COLORS);
-	ptr->addIndice(0); ptr->addIndice(1); ptr->addIndice(2);// ptr->addIndice(3);
-	ptr->copyToFastAccess();
-	materialPtr->setShaderProgram(ShaderManager::getInstance()->getShaderProgram("simple.vert", "simple.frag"));
-
-	floor->setGeometrie(ptr);
-	floor->setMaterial(materialPtr);
-	gWorld->addStaticGeometrie(floor);
-
-	ptr = view::geometrie::BaseGeometrieContainerPtr(new BaseGeometrieContainer);
-	floor = new view::VisibleNode;
-	ptr->addVector(DRVector3(0.0f, 50.0f, 50.0f), model::geometrie::GEOMETRIE_VERTICES);
-	ptr->addVector(DRVector3(50.0f, -50.0f, 50.0f), model::geometrie::GEOMETRIE_VERTICES);
-	ptr->addVector(DRVector3(-50.0f, -50.0f, 50.0f), model::geometrie::GEOMETRIE_VERTICES);
-	//ptr->addVector(DRVector3(0.0f, -1.5f, 0.0f), model::geometrie::GEOMETRIE_VERTICES);
-	ptr->addVector(DRColor(0.5f, 0.2f, 0.2f), model::geometrie::GEOMETRIE_COLORS);
-	ptr->addVector(DRColor(0.2f, 0.5f, 0.2f), model::geometrie::GEOMETRIE_COLORS);
-	ptr->addVector(DRColor(0.2f, 2.0f, 0.5f), model::geometrie::GEOMETRIE_COLORS);
-	ptr->addIndice(0); ptr->addIndice(1); ptr->addIndice(2);// ptr->addIndice(3);
-	ptr->copyToFastAccess();
-
-	floor->setGeometrie(ptr);
-	floor->setMaterial(materialPtr);
-	floor->getPosition()->setPosition(DRVector3(0.0f, 20.0f, 0.0f));
-	gWorld->addStaticGeometrie(floor);
-
-	ptr = view::geometrie::BaseGeometrieContainerPtr(new BaseGeometrieContainer);
-	model::geometrie::Plane plane(ptr);
-	plane.generateVertices(model::geometrie::GEOMETRIE_VERTICES);
-	floor = new view::VisibleNode;
-	ptr->copyToFastAccess();
-	materialPtr = view::MaterialPtr(new Material);
-	materialPtr->setShaderProgram(ShaderManager::getInstance()->getShaderProgram("color.vert", "color.frag"));
+	view::MaterialPtr materialPtr = view::MaterialPtr(new Material);
+	materialPtr->setShaderProgram(controller::ShaderManager::getInstance()->getShaderProgram("color.vert", "color.frag"));
 	floor->setMaterial(materialPtr);
 	floor->setGeometrie(ptr);
 	model::Position* pos = floor->getPosition();
@@ -254,6 +206,11 @@ DRReturn load()
 	//gInputCamera->getPosition()->setPosition(DRVector3(0.0f, 0.0f, -400.0f));
 	gInputCamera->setAspectRatio(g_v2WindowLength.x / g_v2WindowLength.y);
 	gInputCamera->setFarClipping(1000.0f);
+
+	// loading from json
+	// TODO: parallele load with CPUTasks
+
+
 	return DR_OK;
 }
 
@@ -261,6 +218,9 @@ DRReturn load()
 
 void ende()
 {
+	
+	controller::BlockMaterialManager::getInstance()->exit();
+	DR_SAVE_DELETE(gCPUScheduler);
 	DR_SAVE_DELETE(gWorld);
 	DR_SAVE_DELETE(gInputCamera);
 	UniLib::exit();

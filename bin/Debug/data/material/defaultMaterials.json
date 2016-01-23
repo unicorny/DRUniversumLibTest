@@ -1,0 +1,25 @@
+[
+	{
+		"name":"_MATERIAL_NAME_STEEL",
+		"base_type":"solid",
+		"density":7.86,
+		"melting_point":1536,
+		"hitpoints":100000,
+		"shader":{
+			"fragment":"steel.frag",
+			"vertex":"steel.vert"
+		}
+		
+	},
+	{
+		"name":"_MATERIAL_NAME_GLASS",
+		"transparency":1,
+		"density":2.201,
+		"melting_point":1130,
+		"hitpoints": 1000,
+		"shader" : {
+			"fragment":"glass.frag",
+			"vertex":"glass.vert"
+		}
+	}
+]
