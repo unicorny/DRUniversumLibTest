@@ -10,6 +10,7 @@
 #include "model/geometrie/BaseGeometrie.h"
 #include "model/BlockSektor.h"
 #include "ShaderProgram.h"
+#include "SpaceCraftNode.h"
 
 #include "UniformSet.h"
 
@@ -18,7 +19,7 @@ using namespace controller;
 
 
 World::World()
-	:mPreRenderer(new WorldPreRender(this)), mWorldUniforms(new UniformSet)
+	:mPreRenderer(new WorldPreRender(this)), mWorldUniforms(new UniformSet), mSpaceCraft(new SpaceCraftNode(NULL))
 {
 	GPUScheduler* sched = GPUScheduler::getInstance();
 	sched->registerGPURenderCommand(this, GPU_SCHEDULER_COMMAND_RENDERING);
@@ -26,10 +27,6 @@ World::World()
 	mWorldUniforms->setUniform("view", DRMatrix::identity());
 	mWorldUniforms->setUniform("time", 0.0f);
 
-	view::BlockSektor* view = new view::BlockSektor();
-	mBlockStartSektor = new model::BlockSektor(view);
-	view->setSektorModel(mBlockStartSektor);
-	
 }
 
 World::~World()
@@ -45,10 +42,7 @@ World::~World()
 	mGeometrieObjects.clear();
 	DR_SAVE_DELETE(mWorldUniforms);
 
-	view::Sektor* vb = mBlockStartSektor->getSektorView();
-	DR_SAVE_DELETE(vb);
-	DR_SAVE_DELETE(mBlockStartSektor);
-	mBlockStartSektor = NULL;
+	DR_SAVE_DELETE(mSpaceCraft);
 }
 
 DRReturn World::render(float timeSinceLastFrame)
@@ -83,7 +77,7 @@ void World::kicked()
 // \param percent used up percent time of render main loop
 void World::youNeedToLong(float percent)
 {
-	UniLib::EngineLog.writeToLog("to slow: %f", percent);
+	//UniLib::EngineLog.writeToLog("to slow: %f", percent);
 }
 
 void World::addStaticGeometrie(view::VisibleNode* obj)
@@ -94,6 +88,8 @@ void World::addStaticGeometrie(view::VisibleNode* obj)
 	mWorldUniforms->addLocationToUniform("view", dynamic_cast<ShaderProgram*>(program));
 	mWorldUniforms->addLocationToUniform("time", dynamic_cast<ShaderProgram*>(program));
 }
+
+
 
 // ***************************************************************
 WorldPreRender::WorldPreRender(World* parent)

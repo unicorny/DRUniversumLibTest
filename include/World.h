@@ -5,10 +5,12 @@
 #include "controller/GPUScheduler.h"
 #include "model/ShaderProgram.h"
 
+
 class WorldPreRender;
 class UniformSet;
 class ShaderProgram;
 class BaseGeometrieContainer;
+class SpaceCraftNode;
 
 namespace UniLib {
 	namespace model {
@@ -16,6 +18,7 @@ namespace UniLib {
 			class BaseGeometrie;
 		}
 		class BlockSektor;
+		class Node;
 	}
 
 	namespace view {
@@ -34,6 +37,7 @@ public:
 	~World();
 
 	void addStaticGeometrie(UniLib::view::VisibleNode* obj);
+	__inline__ SpaceCraftNode* getSpaceCraftNode() { return mSpaceCraft; }
 	
 	virtual DRReturn render(float timeSinceLastFrame);
 	// if render return not DR_OK, Call will be removed from List and kicked will be called
@@ -45,9 +49,8 @@ protected:
 	WorldPreRender* mPreRenderer;
 	UniformSet* mWorldUniforms;
 	std::list<UniLib::view::VisibleNode*> mGeometrieObjects;
-	//start sektor
-	UniLib::model::BlockSektor* mBlockStartSektor;
 	
+	SpaceCraftNode* mSpaceCraft;
 };
 
 class WorldPreRender: public UniLib::controller::GPURenderCall

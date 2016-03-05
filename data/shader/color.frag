@@ -358,6 +358,7 @@ float terrace(float value, float points[6], int pointsCount)
 }
 
 varying vec3 color;
+uniform sampler2D basic_texture;
 uniform float time;
 out vec4 result;
 void main()
@@ -370,5 +371,7 @@ void main()
 	colorTemp = vec3(brown*2.56, vec2(brown));
 	
 	result = vec4(colorTemp, 1.0);
+	
+	//result = texture2D(basic_texture, vec2(color.x, color.z));
 	//result.r = 1.0;
 }

@@ -9,19 +9,24 @@ set(CMAKE_LIBRARY_PATH ${CMAKE_LIBRARY_PATH} import/lib)
 
 FILE(GLOB SRC "src/*.cpp")
 FILE(GLOB VIEW_SRC "src/view/*.cpp")
+FILE(GLOB HUD_SRC "src/hud/*.cpp")
 FILE(GLOB HEADER "include/*.h")
 FILE(GLOB VIEW_HEADER "include/view/*.h")
+FILE(GLOB HUD_HEADER "include/hud/*.h")
 
-SET(COMPLETE_SRC ${SRC} ${HEADER} ${VIEW_SRC} ${VIEW_HEADER})
+SET(COMPLETE_SRC ${SRC} ${HEADER} ${VIEW_SRC} ${VIEW_HEADER} ${HUD_SRC} ${HUD_HEADER})
 
 if(MSVC)
 
 # src
 source_group("src" FILES ${SRC})
 source_group("src//view" FILES ${VIEW_SRC})
+source_group("src//hud" FILES ${HUD_SRC})
 # include
 source_group("include" FILES ${HEADER})
 source_group("include//view" FILES ${VIEW_HEADER})
+source_group("include//hud" FILES ${HUD_HEADER})
+
 #source_group("include" REGULAR_EXPRESSION "${CMAKE_CURRENT_SOURCE_DIR}/${REC2}" )
 endif(MSVC)
 

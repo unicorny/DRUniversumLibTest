@@ -8,13 +8,18 @@
 #include "controller/InputControls.h"
 #include "controller/GPUScheduler.h"
 #include "controller/ShaderManager.h"
-#include "controller/BlockMaterialManager.h"
+#include "controller/BlockTypeManager.h"
 #include "controller/CPUSheduler.h"
 #include "view/VisibleNode.h"
 #include "Geometrie.h"
 #include "model/geometrie/Plane.h"
+#include "model/block/Block.h"
+#include "model/block/BlockType.h"
 #include "Material.h"
 #include "view/Material.h"
+#include "FrameBuffer.h"
+
+#include "SpaceCraftNode.h"
 
 #include "controller/InputCamera.h"
 #include <sdl/SDL_opengl.h>
@@ -23,6 +28,7 @@
 using namespace UniLib;
 
 MainRenderCall mainRenderCall;
+FrameBuffer g_FrameBuffer;
 PreRenderCall  preRenderCall;
 SDL_Window* g_pSDLWindow = NULL;
 controller::InputCamera* gInputCamera = NULL;
@@ -98,7 +104,8 @@ DRReturn load()
 	DRFileManager::getSingleton().addOrdner("data/languages");
 	controller::ShaderManager::getInstance()->init();
 	gCPUScheduler = new controller::CPUSheduler(4, "mainSch");
-	controller::BlockMaterialManager::getInstance()->initAsyn("defaultMaterials.json", gCPUScheduler);
+	controller::BlockTypeManager::getInstance()->initAsyn("defaultMaterials.json", gCPUScheduler);
+//	controller::BlockMaterialManager::getInstance()->init("defaultMaterials.json");
 
 	//Not Exit Funktion festlegen
 	atexit(SDL_Quit);
@@ -170,7 +177,7 @@ DRReturn load()
 	glDepthFunc (GL_LESS); // depth-testing interprets a smaller value as "closer"
 
 	// sync buffer swap with monitor's vertical refresh rate
-	SDL_GL_SetSwapInterval(1);
+	//SDL_GL_SetSwapInterval(1);
 
 	// set background color
 	glClearColor( 0.0, 0.0, 0.2, 1.0 );
@@ -190,7 +197,8 @@ DRReturn load()
 	gWorld = new World();
 
 	// adding floor
-	Geometrie* geo = new Geometrie(new model::geometrie::Plane(model::geometrie::GEOMETRIE_VERTICES));
+	model::geometrie::Plane* pl = new model::geometrie::Plane(model::geometrie::GEOMETRIE_VERTICES);
+	Geometrie* geo = new Geometrie(pl);
 	view::GeometriePtr ptr(geo);
 	view::VisibleNode* floor = new view::VisibleNode;
 	view::MaterialPtr materialPtr = view::MaterialPtr(new Material);
@@ -201,6 +209,14 @@ DRReturn load()
 	pos->setScale(DRVector3(400.0f));
 	pos->setPosition(DRVector3(-200.0f, -50.0f, -200.0f));
 	gWorld->addStaticGeometrie(floor);
+
+	// first block
+	model::block::BlockPtr block = model::block::BlockPtr(new model::block::Block("_MATERIAL_NAME_STEEL"));
+	EngineLog.writeToLog("creating block: %s", block->getBlockType()->asString().data());
+	std::queue<u8> path;
+	path.push(4);
+	gWorld->getSpaceCraftNode()->addBlock(block, path, DRVector3i(4, 5, 4));
+
 	// Kamera
 	gInputCamera = new controller::InputCamera(80.0f, 1.0f, 45.0f);
 	//gInputCamera->getPosition()->setPosition(DRVector3(0.0f, 0.0f, -400.0f));
@@ -210,6 +226,8 @@ DRReturn load()
 	// loading from json
 	// TODO: parallele load with CPUTasks
 
+	//g_FrameBuffer.init();
+
 
 	return DR_OK;
 }
@@ -218,8 +236,8 @@ DRReturn load()
 
 void ende()
 {
-	
-	controller::BlockMaterialManager::getInstance()->exit();
+	g_FrameBuffer.exit();
+	controller::BlockTypeManager::getInstance()->exit();
 	DR_SAVE_DELETE(gCPUScheduler);
 	DR_SAVE_DELETE(gWorld);
 	DR_SAVE_DELETE(gInputCamera);
@@ -239,7 +257,7 @@ DRReturn gameLoop()
 		gInputCamera->updateDirectlyFromKeyboard();
 		gInputCamera->updateCameraMatrix();
 		char buffer[256]; memset(buffer, 0, 256);
-		sprintf(buffer, "FPS: %f", gpuScheduler->getSecondsSinceLastFrame());
+		sprintf(buffer, "FPS: %f", 1.0f/(float)gpuScheduler->getSecondsSinceLastFrame());
 		SDL_SetWindowTitle(g_pSDLWindow, buffer);
 		if(gpuScheduler->updateEveryRendering()) {
 			LOG_ERROR("error in GPUScheduler", DR_ERROR);
