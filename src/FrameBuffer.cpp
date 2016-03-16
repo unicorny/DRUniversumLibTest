@@ -148,7 +148,6 @@ DRReturn FrameBuffer::render(float timeSinceLastFrame)
 }
 
 
-
 const char* FrameBuffer::getFrameBufferEnumName(GLenum name)
 {
 	switch (name)

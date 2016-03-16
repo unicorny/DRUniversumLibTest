@@ -3,6 +3,7 @@ xcopy /Y Y:\UniversumLib\import\lib\SDL2.lib  lib\
 xcopy /Y Y:\UniversumLib\lib\Debug\DRUniversumLib.lib  lib\
 
 xcopy /Y Y:\UniversumLib\dependencies\bin\Debug\DRCore2.dll  bin\
+xcopy /Y Y:\UniversumLib\dependencies\bin\Debug\DRImage.dll  bin\
 xcopy /Y Y:\UniversumLib\bin\Debug\SDL2.dll  bin\
 xcopy /Y Y:\UniversumLib\bin\Debug\DRUniversumLib.dll  bin\
 

@@ -60,7 +60,8 @@ DRReturn World::render(float timeSinceLastFrame)
 		g->getMaterial()->bind();
 		model::ShaderProgram* s = g->getMaterial()->getShaderProgram();
 		mWorldUniforms->updateUniforms((ShaderProgram*)s);
-		if(g->getGeometrie()->render()) {
+		view::GeometriePtr geo = g->getGeometrie();
+		if(geo->render()) {
 			LOG_ERROR("error by rendering geometrie", DR_ERROR);
 		}
 		//BaseGeometrieContainer* conti =  dynamic_cast<BaseGeometrieContainer*>(c);

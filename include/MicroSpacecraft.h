@@ -9,3 +9,5 @@ namespace UniLib {
 
 extern SDL_Window* g_pSDLWindow;
 extern UniLib::controller::InputCamera* gInputCamera;
+
+DRReturn DRGrafikError(const char* pcErrorMessage);

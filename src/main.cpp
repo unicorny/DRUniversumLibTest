@@ -9,6 +9,7 @@
 #include "controller/GPUScheduler.h"
 #include "controller/ShaderManager.h"
 #include "controller/BlockTypeManager.h"
+#include "controller/TextureManager.h"
 #include "controller/CPUSheduler.h"
 #include "view/VisibleNode.h"
 #include "Geometrie.h"
@@ -17,6 +18,7 @@
 #include "model/block/BlockType.h"
 #include "Material.h"
 #include "view/Material.h"
+#include "lib/Timer.h"
 #include "FrameBuffer.h"
 
 #include "SpaceCraftNode.h"
@@ -37,7 +39,7 @@ SDL_GLContext g_glContext;
 DRVector2  g_v2WindowLength = DRVector2(0.0f);
 World* gWorld = NULL;
 static BindToRender gBindToRender;
-
+lib::Timer* gTimer = NULL;
 
 //********************************************************************************************************************
 const char* DRGetGLErrorText(GLenum eError)
@@ -73,7 +75,7 @@ DRReturn DRGrafikError(const char* pcErrorMessage)
 DRReturn load()
 {
 	
-	UniLib::init();
+	UniLib::init(2);
 	UniLib::setBindToRenderer(&gBindToRender);
 	controller::GPUScheduler::getInstance()->registerGPURenderCommand(&mainRenderCall, controller::GPU_SCHEDULER_COMMAND_AFTER_RENDERING);
 	controller::GPUScheduler::getInstance()->registerGPURenderCommand(&preRenderCall, controller::GPU_SCHEDULER_COMMAND_PREPARE_RENDERING);
@@ -102,9 +104,18 @@ DRReturn load()
 	DRFileManager::getSingleton().addOrdner("data/shader");
 	DRFileManager::getSingleton().addOrdner("data/material");
 	DRFileManager::getSingleton().addOrdner("data/languages");
+	DRFileManager::getSingleton().addOrdner("data/textures");
 	controller::ShaderManager::getInstance()->init();
-	gCPUScheduler = new controller::CPUSheduler(4, "mainSch");
-	controller::BlockTypeManager::getInstance()->initAsyn("defaultMaterials.json", gCPUScheduler);
+	
+	int L1CacheSize = SDL_GetCPUCacheLineSize();
+	int CPUCoreCount = SDL_GetCPUCount();
+	EngineLog.writeToLog("L1 CPU Cache Size: %d KByte, CPU Core Count: %d", L1CacheSize, CPUCoreCount);
+	gCPUScheduler = new controller::CPUSheduler(CPUCoreCount, "mainSch");
+	gTimer = new lib::Timer;
+	controller::TextureManager::getInstance()->init(gCPUScheduler, gTimer);
+	std::list<std::string> configFileNames;
+	configFileNames.push_back("defaultMaterials.json");
+	controller::BlockTypeManager::getInstance()->initAsyn(&configFileNames, gCPUScheduler);
 //	controller::BlockMaterialManager::getInstance()->init("defaultMaterials.json");
 
 	//Not Exit Funktion festlegen
@@ -139,8 +150,10 @@ DRReturn load()
 	g_pSDLWindow = SDL_CreateWindow(pcTitel, SDL_WINDOWPOS_UNDEFINED, SDL_WINDOWPOS_UNDEFINED, XWIDTH, YHEIGHT, flags);
 #else
 	//g_pSDLWindow = SDL_SetVideoMode((int)XWIDTH, (int)YHEIGHT, 32, SDL_OPENGL);
-	g_pSDLWindow = SDL_CreateWindow("Micro Spacecraft", SDL_WINDOWPOS_UNDEFINED, SDL_WINDOWPOS_UNDEFINED, 800, 600, SDL_WINDOW_OPENGL|SDL_WINDOW_RESIZABLE );
+	g_pSDLWindow = SDL_CreateWindow("Micro Spacecraft", SDL_WINDOWPOS_UNDEFINED, SDL_WINDOWPOS_UNDEFINED, 800, 600, SDL_WINDOW_OPENGL|SDL_WINDOW_RESIZABLE);
 #endif //_DEBUG
+	//SDL_SysWMinfo* handle = NULL;
+	//SDL_GetWindowWMInfo(g_pSDLWindow, handle);
 
 	
 
@@ -191,7 +204,7 @@ DRReturn load()
 	g_v2WindowLength.x = static_cast<float>(w);
 	g_v2WindowLength.y = static_cast<float>(h);
 
-	
+	EngineLog.writeToLog("time after creating renderer: %d ms", SDL_GetTicks());
 
 	// World init
 	gWorld = new World();
@@ -202,7 +215,8 @@ DRReturn load()
 	view::GeometriePtr ptr(geo);
 	view::VisibleNode* floor = new view::VisibleNode;
 	view::MaterialPtr materialPtr = view::MaterialPtr(new Material);
-	materialPtr->setShaderProgram(controller::ShaderManager::getInstance()->getShaderProgram("color.vert", "color.frag"));
+	materialPtr->setShaderProgram(controller::ShaderManager::getInstance()->getShaderProgram("simple.vert", "simple.frag"));
+	materialPtr->usingTexture("test.jpg");
 	floor->setMaterial(materialPtr);
 	floor->setGeometrie(ptr);
 	model::Position* pos = floor->getPosition();
@@ -227,7 +241,7 @@ DRReturn load()
 	// TODO: parallele load with CPUTasks
 
 	//g_FrameBuffer.init();
-
+	EngineLog.writeToLog("Loading Zeit: %d ms", SDL_GetTicks());
 
 	return DR_OK;
 }
@@ -238,9 +252,11 @@ void ende()
 {
 	g_FrameBuffer.exit();
 	controller::BlockTypeManager::getInstance()->exit();
+	controller::TextureManager::getInstance()->exit();
 	DR_SAVE_DELETE(gCPUScheduler);
 	DR_SAVE_DELETE(gWorld);
 	DR_SAVE_DELETE(gInputCamera);
+	DR_SAVE_DELETE(gTimer);
 	UniLib::exit();
 }
 
@@ -249,6 +265,7 @@ DRReturn gameLoop()
 {
 	controller::InputControls* input = controller::InputControls::getInstance();
 	controller::GPUScheduler* gpuScheduler = controller::GPUScheduler::getInstance();
+	bool firstRun = false;
 	while(true) {
 		if(input->inputLoop()) {
 			LOG_ERROR("error in input loop", DR_ERROR);
@@ -262,6 +279,8 @@ DRReturn gameLoop()
 		if(gpuScheduler->updateEveryRendering()) {
 			LOG_ERROR("error in GPUScheduler", DR_ERROR);
 		}
+		if (!firstRun) EngineLog.writeToLog("time after first loop (before flip): %d ms", SDL_GetTicks());
+		firstRun = true;
 	}
 	return DR_OK;
 }
