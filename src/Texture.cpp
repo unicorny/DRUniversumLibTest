@@ -43,19 +43,22 @@ DRReturn Texture::_uploadToGPU()
 	else if (format == GL_RGB) internalFormat = 3;
 	else LOG_ERROR("unknown format", DR_ERROR);
 	DRVector2i size = mTextureModel->getSize();
-	u8* pixels = mTextureModel->getPixels();
 	if (mTextureID == 0) createTextureMemory(size, format, internalFormat);
-	glGenBuffers(1, &mPboID);
-	glBindBuffer(GL_PIXEL_UNPACK_BUFFER, mPboID);
+	if (mTextureModel->hasImageData()) {
+		u8* pixels = mTextureModel->getPixels();
+		glGenBuffers(1, &mPboID);
+		glBindBuffer(GL_PIXEL_UNPACK_BUFFER, mPboID);
 
-	glBufferData(GL_PIXEL_UNPACK_BUFFER, size.x*size.y*internalFormat,
-		pixels, GL_STREAM_DRAW);
+		glBufferData(GL_PIXEL_UNPACK_BUFFER, size.x*size.y*internalFormat,
+			pixels, GL_STREAM_DRAW);
 
-	glTexSubImage2D(GL_TEXTURE_2D, 0,
-		0, 0,size.x, size.y,
-		format, GL_UNSIGNED_BYTE, NULL);
+		glTexSubImage2D(GL_TEXTURE_2D, 0,
+			0, 0, size.x, size.y,
+			format, GL_UNSIGNED_BYTE, NULL);
 
-	glBindBuffer(GL_PIXEL_UNPACK_BUFFER, 0);
+		glBindBuffer(GL_PIXEL_UNPACK_BUFFER, 0);
+	}
+	setLoadingState(LOADING_STATE_FULLY_LOADED);
 	return DRGrafikError("[Texture::pixelsCopyToRenderer] Error by copying pixels to OpenGL");
 }
 

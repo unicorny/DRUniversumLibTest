@@ -20,6 +20,7 @@ public:
 	virtual void uploadToGPU();
 	virtual void downloadFromGPU();
 	virtual void bind();
+	virtual GLuint getTextureId() { return mTextureID; }
 	// CPU Task
 	virtual void saveIntoFile(const char* filename);
 protected:

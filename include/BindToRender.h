@@ -8,12 +8,14 @@
 #include "ShaderProgram.h"
 #include "BlockSektorRenderer.h"
 #include "Texture.h"
+#include "Geometrie.h"
 
 class BindToRender : public UniLib::controller::BindToRenderer
 {
 public:
 	virtual UniLib::view::Material* newMaterial() {return new Material;}
 	//virtual UniLib::view::geometrie::BaseGeometrieContainer* newGeometrieContainer() {return new BaseGeometrieContainer;}
+	virtual UniLib::view::Geometrie* newGeometrie(UniLib::model::geometrie::BaseGeometrie* baseGeometrie) { return new Geometrie(baseGeometrie); }
 	virtual UniLib::model::Shader* newShader(HASH id) {return new Shader(id);}
 	virtual UniLib::model::ShaderProgram* newShaderProgram(HASH id) {return new ShaderProgram(id);}
 	virtual UniLib::view::BlockSektor* newBlockSektor(){ return new BlockSektorRenderer(); }

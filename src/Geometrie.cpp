@@ -7,7 +7,7 @@ using namespace UniLib;
 using namespace model;
 
 Geometrie::Geometrie(model::geometrie::BaseGeometrie* geometrieModel)
-	: view::Geometrie(geometrieModel), mRenderMode(GL_TRIANGLE_STRIP), mUsage(GL_STATIC_DRAW), mIndexCount(0)
+	: view::Geometrie(geometrieModel), mVAO(0), mRenderMode(GL_TRIANGLE_STRIP), mUsage(GL_STATIC_DRAW), mIndexCount(0)
 {
 
 }
@@ -85,6 +85,7 @@ DRReturn Geometrie::uploadToGPU()
 
 DRReturn Geometrie::render()
 {
+	if (!mVAO) return DR_OK;
 	glBindVertexArray (mVAO);
 	//glDrawArrays(mRenderMode, 0, mVertexCount);
 	glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, mGLBufferIDs[1]);

@@ -20,6 +20,7 @@ public:
 	__inline__ void setRenderMode(GLenum renderMode){mRenderMode = renderMode;}
 	__inline__ void setUsage(GLenum usage) {mUsage = usage;}
 	virtual DRReturn render();
+	virtual bool isReady() { return mVAO != 0; }
 
 	virtual const char* getResourceType() {return "Geometrie";}
 protected:

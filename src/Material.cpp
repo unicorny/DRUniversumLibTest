@@ -1,21 +1,47 @@
 #include "Material.h"
 #include "model/ShaderProgram.h"
 #include "view/Texture.h"
-
-Material::Material()
-{
-
-}
-
-Material::~Material() 
-{
-
-}
+#include "ShaderProgram.h"
+#include "UniformSet.h"
 
 void Material::bind()
 {
-	if(mTexture.getResourcePtrHolder())
-		mTexture->bind();
-	if(mShaderProgram.getResourcePtrHolder())
+	if (mShaderProgram.getResourcePtrHolder()) {
 		mShaderProgram->bind();
+		if (mUniformsSet) {
+			ShaderProgram* shader = static_cast<ShaderProgram*>(&(*mShaderProgram));
+			UniformSet* uniforms = static_cast<UniformSet*>(mUniformsSet);
+			uniforms->updateUniforms(shader);
+		}
+		
+	}
+}
+
+void TextureMaterial::bind()
+{
+	if (mTexture.getResourcePtrHolder())
+		mTexture->bind();
+	if (mShaderProgram.getResourcePtrHolder()) {
+		mShaderProgram->bind();
+		if (mUniformsSet) {
+			ShaderProgram* shader = static_cast<ShaderProgram*>(&(*mShaderProgram));
+			UniformSet* uniforms = static_cast<UniformSet*>(mUniformsSet);
+			uniforms->updateUniforms(shader);
+		}
+	}
+}
+void MultiTextureMaterial::bind()
+{
+	for (int i = 0; i < mTextureCount; i++) {
+		if (mTextures[i] && mTextures[i].getResourcePtrHolder())
+			mTextures[i]->bind();
+	}
+	if (mShaderProgram.getResourcePtrHolder()) {
+		mShaderProgram->bind();
+		if (mUniformsSet) {
+			ShaderProgram* shader = static_cast<ShaderProgram*>(&(*mShaderProgram));
+			UniformSet* uniforms = static_cast<UniformSet*>(mUniformsSet);
+			uniforms->updateUniforms(shader);
+		}
+	}
 }

@@ -9,17 +9,20 @@
 #include "controller/GPUScheduler.h"
 #include "controller/ShaderManager.h"
 #include "controller/BlockTypeManager.h"
+#include "controller/BaseGeometrieManager.h"
 #include "controller/TextureManager.h"
 #include "controller/CPUSheduler.h"
+#include "controller/FrameBufferRenderCall.h"
 #include "view/VisibleNode.h"
 #include "Geometrie.h"
 #include "model/geometrie/Plane.h"
 #include "model/block/Block.h"
 #include "model/block/BlockType.h"
 #include "Material.h"
-#include "view/Material.h"
+#include "view/TextureMaterial.h"
 #include "lib/Timer.h"
-#include "FrameBuffer.h"
+//#include "FrameBuffer.h"
+#include "RenderToTexture.h"
 
 #include "SpaceCraftNode.h"
 
@@ -30,13 +33,13 @@
 using namespace UniLib;
 
 MainRenderCall mainRenderCall;
-FrameBuffer g_FrameBuffer;
+controller::FrameBufferRenderCall g_FrameBufferRenderCall;
 PreRenderCall  preRenderCall;
 SDL_Window* g_pSDLWindow = NULL;
 controller::InputCamera* gInputCamera = NULL;
 controller::CPUSheduler* gCPUScheduler = NULL;
 SDL_GLContext g_glContext;
-DRVector2  g_v2WindowLength = DRVector2(0.0f);
+DRVector2i  g_v2WindowLength = DRVector2i(0);
 World* gWorld = NULL;
 static BindToRender gBindToRender;
 lib::Timer* gTimer = NULL;
@@ -77,8 +80,10 @@ DRReturn load()
 	
 	UniLib::init(2);
 	UniLib::setBindToRenderer(&gBindToRender);
-	controller::GPUScheduler::getInstance()->registerGPURenderCommand(&mainRenderCall, controller::GPU_SCHEDULER_COMMAND_AFTER_RENDERING);
+	
+	controller::GPUScheduler::getInstance()->registerGPURenderCommand(&g_FrameBufferRenderCall, controller::GPU_SCHEDULER_COMMAND_BEFORE_PREPARE_RENDERING);
 	controller::GPUScheduler::getInstance()->registerGPURenderCommand(&preRenderCall, controller::GPU_SCHEDULER_COMMAND_PREPARE_RENDERING);
+	controller::GPUScheduler::getInstance()->registerGPURenderCommand(&mainRenderCall, controller::GPU_SCHEDULER_COMMAND_AFTER_RENDERING);
 	
 	controller::InputControls* input = controller::InputControls::getInstance();
 	input->setMapping(SDL_SCANCODE_LEFT, controller::INPUT_ROTATE_LEFT);
@@ -105,17 +110,21 @@ DRReturn load()
 	DRFileManager::getSingleton().addOrdner("data/material");
 	DRFileManager::getSingleton().addOrdner("data/languages");
 	DRFileManager::getSingleton().addOrdner("data/textures");
-	controller::ShaderManager::getInstance()->init();
+	controller::ShaderManager* shaderManager = controller::ShaderManager::getInstance();
+	shaderManager->init();
+	
 	
 	int L1CacheSize = SDL_GetCPUCacheLineSize();
 	int CPUCoreCount = SDL_GetCPUCount();
 	EngineLog.writeToLog("L1 CPU Cache Size: %d KByte, CPU Core Count: %d", L1CacheSize, CPUCoreCount);
 	gCPUScheduler = new controller::CPUSheduler(CPUCoreCount, "mainSch");
 	gTimer = new lib::Timer;
-	controller::TextureManager::getInstance()->init(gCPUScheduler, gTimer);
+	controller::TextureManager* textureManager = controller::TextureManager::getInstance();
+	textureManager->init(gCPUScheduler, gTimer);
 	std::list<std::string> configFileNames;
 	configFileNames.push_back("defaultMaterials.json");
 	controller::BlockTypeManager::getInstance()->initAsyn(&configFileNames, gCPUScheduler);
+	controller::BaseGeometrieManager::getInstance()->init(gCPUScheduler);
 //	controller::BlockMaterialManager::getInstance()->init("defaultMaterials.json");
 
 	//Not Exit Funktion festlegen
@@ -199,7 +208,8 @@ DRReturn load()
 	//OpenGL einrichten für Ohrtogonale Projection
 	int w = 0, h = 0;
 	SDL_GL_GetDrawableSize(g_pSDLWindow, &w, &h);
-	glViewport(0, 0, w, h);
+	g_v2WindowLength = DRVector2i(w, h);
+	
 
 	g_v2WindowLength.x = static_cast<float>(w);
 	g_v2WindowLength.y = static_cast<float>(h);
@@ -214,15 +224,25 @@ DRReturn load()
 	Geometrie* geo = new Geometrie(pl);
 	view::GeometriePtr ptr(geo);
 	view::VisibleNode* floor = new view::VisibleNode;
-	view::MaterialPtr materialPtr = view::MaterialPtr(new Material);
-	materialPtr->setShaderProgram(controller::ShaderManager::getInstance()->getShaderProgram("simple.vert", "simple.frag"));
-	materialPtr->usingTexture("test.jpg");
+	
+	TextureMaterial* mat = new TextureMaterial;
+	view::TexturePtr texture = textureManager->getEmptyTexture(DRVector2i(512, 512), GL_RGBA);
+	view::MaterialPtr materialPtr = view::MaterialPtr(mat);
+	mat->setShaderProgram(shaderManager->getShaderProgram("simple.vert", "simple.frag"));
+	mat->setTexture(texture);
 	floor->setMaterial(materialPtr);
 	floor->setGeometrie(ptr);
 	model::Position* pos = floor->getPosition();
 	pos->setScale(DRVector3(400.0f));
 	pos->setPosition(DRVector3(-200.0f, -50.0f, -200.0f));
 	gWorld->addStaticGeometrie(floor);
+
+	// render to texture test
+	RenderToTexture* testTask = new RenderToTexture(texture);
+	Material* renderMaterial = new Material;
+	renderMaterial->setShaderProgram(shaderManager->getShaderProgram("frameBuffer.vert", "speedTest.frag"));
+	testTask->setMaterial(renderMaterial);
+	g_FrameBufferRenderCall.addRenderToTextureTask(testTask);
 
 	// first block
 	model::block::BlockPtr block = model::block::BlockPtr(new model::block::Block("_MATERIAL_NAME_STEEL"));
@@ -250,9 +270,9 @@ DRReturn load()
 
 void ende()
 {
-	g_FrameBuffer.exit();
 	controller::BlockTypeManager::getInstance()->exit();
 	controller::TextureManager::getInstance()->exit();
+	controller::BaseGeometrieManager::getInstance()->exit();
 	DR_SAVE_DELETE(gCPUScheduler);
 	DR_SAVE_DELETE(gWorld);
 	DR_SAVE_DELETE(gInputCamera);

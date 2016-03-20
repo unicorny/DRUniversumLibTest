@@ -36,6 +36,8 @@ PreRenderCall::PreRenderCall()
 DRReturn PreRenderCall::render(float timeSinceLastFrame)
 {
 	//printf("[MainRenderCall::render]\n");
+	glBindFramebuffer(GL_FRAMEBUFFER, 0);
+	glViewport(0, 0, g_v2WindowLength.x, g_v2WindowLength.y);
 	glClear( GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT );
 
 
