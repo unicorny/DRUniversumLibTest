@@ -4,7 +4,7 @@ PROJECT(MicroSpacecraft CXX)
 
 SET(CMAKE_RUNTIME_OUTPUT_DIRECTORY bin)
 
-INCLUDE_DIRECTORIES(include import/include import/include/UniversumLib)
+INCLUDE_DIRECTORIES(include import/include import/include/freetype import/include/UniversumLib)
 set(CMAKE_LIBRARY_PATH ${CMAKE_LIBRARY_PATH} import/lib)
 
 FILE(GLOB SRC "src/*.cpp")
@@ -20,12 +20,12 @@ if(MSVC)
 
 # src
 source_group("src" FILES ${SRC})
-source_group("src//view" FILES ${VIEW_SRC})
-source_group("src//hud" FILES ${HUD_SRC})
+source_group("src\\view" FILES ${VIEW_SRC})
+source_group("src\\hud" FILES ${HUD_SRC})
 # include
 source_group("include" FILES ${HEADER})
-source_group("include//view" FILES ${VIEW_HEADER})
-source_group("include//hud" FILES ${HUD_HEADER})
+source_group("include\\view" FILES ${VIEW_HEADER})
+source_group("include\\hud" FILES ${HUD_HEADER})
 
 #source_group("include" REGULAR_EXPRESSION "${CMAKE_CURRENT_SOURCE_DIR}/${REC2}" )
 endif(MSVC)
@@ -40,9 +40,10 @@ find_library(SDL2_LIB SDL2 PATHS ${PA})
 find_library(CORE2_LIB DRCore2 PATHS ${PA})
 find_library(UNIVERSUM_LIB DRUniversumLib PATHS ${PA})
 find_library(GLEW_32 glew32 PATHS ${PA})
-SET(LIBS ${CORE2_LIB} ${UNIVERSUM_LIB} Winmm ${GLEW_32} opengl32 ${SDL2_LIB})
+find_library(FREETYPE freetype PATHS ${PA})
+SET(LIBS ${CORE2_LIB} ${UNIVERSUM_LIB} Winmm ${GLEW_32} opengl32 ${SDL2_LIB} ${FREETYPE})
 else(UNIX)
-SET(LIBS DRCore2 DRUniversumLib GLEW)
+SET(LIBS DRCore2 DRUniversumLib GLEW freetype)
 endif(WIN32)
 
 ADD_EXECUTABLE(MicroSpacecraft ${COMPLETE_SRC})

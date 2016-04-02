@@ -24,6 +24,8 @@
 //#include "FrameBuffer.h"
 #include "RenderToTexture.h"
 
+#include "Hud/Font.h"
+
 #include "SpaceCraftNode.h"
 
 #include "controller/InputCamera.h"
@@ -43,6 +45,8 @@ DRVector2i  g_v2WindowLength = DRVector2i(0);
 World* gWorld = NULL;
 static BindToRender gBindToRender;
 lib::Timer* gTimer = NULL;
+FontManager* gFont = NULL;
+DRFont* gTestFont = NULL;
 
 //********************************************************************************************************************
 const char* DRGetGLErrorText(GLenum eError)
@@ -112,7 +116,10 @@ DRReturn load()
 	DRFileManager::getSingleton().addOrdner("data/textures");
 	controller::ShaderManager* shaderManager = controller::ShaderManager::getInstance();
 	shaderManager->init();
-	
+
+	gFont = new FontManager;
+	gTestFont = new DRFont(gFont, "data/font/MandroidBB.ttf");
+	gTestFont->loadGlyph(L'o');
 	
 	int L1CacheSize = SDL_GetCPUCacheLineSize();
 	int CPUCoreCount = SDL_GetCPUCount();
@@ -270,6 +277,8 @@ DRReturn load()
 
 void ende()
 {
+	DR_SAVE_DELETE(gTestFont);
+	DR_SAVE_DELETE(gFont);
 	controller::BlockTypeManager::getInstance()->exit();
 	controller::TextureManager::getInstance()->exit();
 	controller::BaseGeometrieManager::getInstance()->exit();
@@ -296,6 +305,7 @@ DRReturn gameLoop()
 		char buffer[256]; memset(buffer, 0, 256);
 		sprintf(buffer, "FPS: %f", 1.0f/(float)gpuScheduler->getSecondsSinceLastFrame());
 		SDL_SetWindowTitle(g_pSDLWindow, buffer);
+		gTestFont->bind();
 		if(gpuScheduler->updateEveryRendering()) {
 			LOG_ERROR("error in GPUScheduler", DR_ERROR);
 		}
