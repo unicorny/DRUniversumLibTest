@@ -12,7 +12,6 @@
 #include "controller/BaseGeometrieManager.h"
 #include "controller/TextureManager.h"
 #include "controller/CPUSheduler.h"
-#include "controller/FrameBufferRenderCall.h"
 #include "view/VisibleNode.h"
 #include "Geometrie.h"
 #include "model/geometrie/Plane.h"
@@ -35,7 +34,6 @@
 using namespace UniLib;
 
 MainRenderCall mainRenderCall;
-controller::FrameBufferRenderCall g_FrameBufferRenderCall;
 PreRenderCall  preRenderCall;
 SDL_Window* g_pSDLWindow = NULL;
 controller::InputCamera* gInputCamera = NULL;
@@ -84,8 +82,7 @@ DRReturn load()
 	
 	UniLib::init(2);
 	UniLib::setBindToRenderer(&gBindToRender);
-	
-	controller::GPUScheduler::getInstance()->registerGPURenderCommand(&g_FrameBufferRenderCall, controller::GPU_SCHEDULER_COMMAND_BEFORE_PREPARE_RENDERING);
+
 	controller::GPUScheduler::getInstance()->registerGPURenderCommand(&preRenderCall, controller::GPU_SCHEDULER_COMMAND_PREPARE_RENDERING);
 	controller::GPUScheduler::getInstance()->registerGPURenderCommand(&mainRenderCall, controller::GPU_SCHEDULER_COMMAND_AFTER_RENDERING);
 	
@@ -249,7 +246,9 @@ DRReturn load()
 	Material* renderMaterial = new Material;
 	renderMaterial->setShaderProgram(shaderManager->getShaderProgram("frameBuffer.vert", "speedTest.frag"));
 	testTask->setMaterial(renderMaterial);
-	g_FrameBufferRenderCall.addRenderToTextureTask(testTask);
+	controller::TaskPtr renderTestTask(testTask);
+//	g_FrameBufferRenderCall.addRenderToTextureTask(testTask);
+	testTask->scheduleTask(renderTestTask);
 
 	// first block
 	model::block::BlockPtr block = model::block::BlockPtr(new model::block::Block("_MATERIAL_NAME_STEEL"));
