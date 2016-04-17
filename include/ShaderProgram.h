@@ -14,6 +14,7 @@ public:
 	Shader(DHASH id = 0);
 	virtual ~Shader();
 	virtual DRReturn init(const char* shaderFile, UniLib::model::ShaderType shaderType);
+	virtual DRReturn init(unsigned char* shaderFileInMemory, UniLib::model::ShaderType shaderType);
 
 	__inline__ GLuint getShader() {return mShaderID;}
 
@@ -37,6 +38,7 @@ public:
 
 	
 protected:
+	virtual void parseShaderData();
 	GLuint mProgram;
 	
 };  

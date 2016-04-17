@@ -66,23 +66,24 @@ namespace HUD {
 
 		// test
 		mFont = new DRFont(mFontManager, "data/font/MandroidBB.ttf");
-		mFont->loadGlyph(L'o');
+		//mFont->loadGlyph(L'o');
 
 		condSignal();
 		return DR_OK;
 	}
 	void RootNode::exit()
 	{
-		threadLock();
+		
+		//threadLock();
 		mExitCalled = true;
-		threadUnlock();
+		//threadUnlock();
 	}
 	int RootNode::ThreadFunction()
 	{
 		Uint32 startTicks = SDL_GetTicks();
 		Uint32 lastDiff = 0;
 		Uint32 maxMsPerFrame = (Uint32)floor(1000.0f / (float)mFPS_Updates);
-		while (true) {
+		while (!mExitCalled) {
 			float timeSinceLastFrame = (float)lastDiff / 1000.0f;
 			threadLock();
 			move(timeSinceLastFrame);
@@ -105,9 +106,12 @@ namespace HUD {
 
 			// time adjust code
 			lastDiff = SDL_GetTicks() - startTicks;
-			if (lastDiff < maxMsPerFrame)
+			if (lastDiff < maxMsPerFrame) {
 				SDL_Delay(maxMsPerFrame - lastDiff);
+				//printf("\rsdl delay: %d", maxMsPerFrame - lastDiff);
+			}
 			startTicks = SDL_GetTicks();
 		}
+		return 0;
 	}
 }

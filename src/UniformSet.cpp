@@ -16,7 +16,16 @@ UniformSet::~UniformSet()
 DRReturn UniformSet::addLocationToUniform(const char* name, model::ShaderProgram* program)
 {
 	assert(program != NULL && program->getID() != 0);
-	return addUniformMapping(name, (void*)glGetUniformLocation(program->getID(), name), program->getID());
+	ShaderProgram* sp = static_cast<ShaderProgram*>(program);
+	if (sp->checkLoadingState() != LOADING_STATE_FULLY_LOADED) {
+		lock();
+		mWaitingUniformEntrys.push(NotYetReadyUniformEntry(name, sp));
+		unlock();
+		return DR_OK;
+	}
+	else {
+		return addUniformMapping(name, (void*)glGetUniformLocation(sp->getProgram(), name), program->getID());
+	}
 }
 DRReturn UniformSet::removeLocationFromUniform(const char* name, model::ShaderProgram* program)
 {
@@ -42,6 +51,12 @@ void UniformSet::updateUniforms(model::ShaderProgram* program)
 	if(!isDirty()) {
 		unlock();
 		return;
+	}
+	while (!mWaitingUniformEntrys.empty()) {
+		NotYetReadyUniformEntry e = mWaitingUniformEntrys.front();
+		mWaitingUniformEntrys.pop();
+		ShaderProgram* sp = e.shader;
+		addUniformMapping(e.name.data(), (void*)glGetUniformLocation(sp->getProgram(), e.name.data()), sp->getID());
 	}
 	for(std::map<HASH, UniformEntry*>::iterator it = mUniformEntrys.begin(); it != mUniformEntrys.end(); it++) {
 		UniformEntry* entry = it->second;

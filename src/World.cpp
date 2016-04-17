@@ -55,10 +55,14 @@ DRReturn World::render(float timeSinceLastFrame)
 	for(std::list<view::VisibleNode*>::iterator it = mGeometrieObjects.begin(); it != mGeometrieObjects.end();it++)
 	{
 		view::VisibleNode* g = (*it);
+		model::ShaderProgram* s = g->getMaterial()->getShaderProgram();
+		// skip rendering, if shader isn't ready yet
+		if (s->checkLoadingState() != LOADING_STATE_FULLY_LOADED) continue;
+
 		g->calculateMatrix();
 		mWorldUniforms->setUniform("view", g->getMatrix() * gInputCamera->getCameraMatrix());
 		g->getMaterial()->bind();
-		model::ShaderProgram* s = g->getMaterial()->getShaderProgram();
+		
 		mWorldUniforms->updateUniforms((ShaderProgram*)s);
 		view::GeometriePtr geo = g->getGeometrie();
 		if(geo->render()) {
@@ -86,8 +90,11 @@ void World::addStaticGeometrie(view::VisibleNode* obj)
 	mGeometrieObjects.push_back(obj);
 	mPreRenderer->addGeometrieToUpload(obj->getGeometrie());
 	model::ShaderProgram* program = obj->getMaterial()->getShaderProgram();
-	mWorldUniforms->addLocationToUniform("view", dynamic_cast<ShaderProgram*>(program));
-	mWorldUniforms->addLocationToUniform("time", dynamic_cast<ShaderProgram*>(program));
+	if (program) {
+		ShaderProgram* sh = static_cast<ShaderProgram*>(program);
+		mWorldUniforms->addLocationToUniform("view", sh);
+		mWorldUniforms->addLocationToUniform("time", sh);
+	}
 }
 
 

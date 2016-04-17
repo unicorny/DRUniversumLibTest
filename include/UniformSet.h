@@ -11,6 +11,8 @@ namespace UniLib {
 	}
 }
 
+class ShaderProgram;
+
 class UniformSet : public UniLib::model::UniformSet
 {
 public: 
@@ -26,6 +28,14 @@ public:
 	virtual void updateUniforms(UniLib::model::ShaderProgram* program);
 
 protected:
+	struct NotYetReadyUniformEntry
+	{
+		NotYetReadyUniformEntry(const char* name, ShaderProgram* shader)
+			: name(name), shader(shader) {}
+		std::string name;
+		ShaderProgram* shader;
+	};
+	std::queue<NotYetReadyUniformEntry> mWaitingUniformEntrys;
 	
 };
 

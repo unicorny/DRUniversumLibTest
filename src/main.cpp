@@ -260,11 +260,11 @@ DRReturn load()
 	//gInputCamera->getPosition()->setPosition(DRVector3(0.0f, 0.0f, -400.0f));
 	gInputCamera->setAspectRatio(g_v2WindowLength.x / g_v2WindowLength.y);
 	gInputCamera->setFarClipping(1000.0f);
-
+	
 	// HUD
 	g_HUDRootNode = new HUD::RootNode();
 	g_HUDRootNode->init(g_v2WindowLength);
-
+	//*/
 	// loading from json
 	// TODO: parallele load with CPUTasks
 
@@ -278,8 +278,10 @@ DRReturn load()
 
 void ende()
 {
-	g_HUDRootNode->exit();
-	DR_SAVE_DELETE(g_HUDRootNode);
+	if (g_HUDRootNode) {
+		g_HUDRootNode->exit();
+		DR_SAVE_DELETE(g_HUDRootNode);
+	}
 	controller::BlockTypeManager::getInstance()->exit();
 	controller::TextureManager::getInstance()->exit();
 	controller::BaseGeometrieManager::getInstance()->exit();
