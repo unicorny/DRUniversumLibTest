@@ -7,7 +7,7 @@ namespace HUD {
 	class Element : public ContainerNode
 	{
 	public:
-		Element();
+		Element(const char* name);
 		virtual ~Element();
 
 		__inline__ void setDirty() { mDirty = true; }

@@ -1,6 +1,7 @@
 #include "UniformSet.h"
 #include "ShaderProgram.h"
 
+using namespace UniLib;
 
 UniformSet::UniformSet()
 {
@@ -12,15 +13,15 @@ UniformSet::~UniformSet()
 
 }
 
-DRReturn UniformSet::addLocationToUniform(const char* name, ShaderProgram* program)
+DRReturn UniformSet::addLocationToUniform(const char* name, model::ShaderProgram* program)
 {
-	assert(program != NULL && program->getProgram() != 0);
-	return addUniformMapping(name, (void*)glGetUniformLocation(program->getProgram(), name), program->getProgram());
+	assert(program != NULL && program->getID() != 0);
+	return addUniformMapping(name, (void*)glGetUniformLocation(program->getID(), name), program->getID());
 }
-DRReturn UniformSet::removeLocationFromUniform(const char* name, ShaderProgram* program)
+DRReturn UniformSet::removeLocationFromUniform(const char* name, model::ShaderProgram* program)
 {
-	assert(program != NULL && program->getProgram() != 0);
-	return removeUniformMapping(name, program->getProgram());
+	assert(program != NULL && program->getID() != 0);
+	return removeUniformMapping(name, program->getID());
 }
 // uniform update
 // for function pointer
@@ -35,7 +36,7 @@ __inline__ void setGlUniform2i(GLint loc, GLint* vvalue) {glUniform2iv(loc, 1, v
 __inline__ void setGlUniform3i(GLint loc, GLint* vvalue) {glUniform3iv(loc, 1, vvalue);}
 __inline__ void setGlUniform4i(GLint loc, GLint* vvalue) {glUniform4iv(loc, 1, vvalue);}
 
-void UniformSet::updateUniforms(ShaderProgram* program)
+void UniformSet::updateUniforms(model::ShaderProgram* program)
 {
 	lock();
 	if(!isDirty()) {
@@ -44,8 +45,8 @@ void UniformSet::updateUniforms(ShaderProgram* program)
 	}
 	for(std::map<HASH, UniformEntry*>::iterator it = mUniformEntrys.begin(); it != mUniformEntrys.end(); it++) {
 		UniformEntry* entry = it->second;
-		if(entry->locations.find(program->getProgram()) == entry->locations.end()) continue;
-		UniformEntry::Location* l = &entry->locations[program->getProgram()];
+		if(entry->locations.find(program->getID()) == entry->locations.end()) continue;
+		UniformEntry::Location* l = &entry->locations[program->getID()];
 		if(!l->dirty) continue;
 		void (*ffunc)(GLint, GLfloat*) = NULL;
 		void (*ifunc)(GLint, GLint*) = NULL;

@@ -1,7 +1,8 @@
 #include "hud/HUDText.h"
 
 namespace HUD {
-	Text::Text()
+	Text::Text(const char* name)
+		: Element(name)
 	{
 
 	}

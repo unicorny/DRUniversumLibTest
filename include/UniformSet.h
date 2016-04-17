@@ -5,7 +5,11 @@
 
 #include "model/UniformSet.h"
 
-class ShaderProgram;
+namespace UniLib {
+	namespace model {
+		class ShaderProgram;
+	}
+}
 
 class UniformSet : public UniLib::model::UniformSet
 {
@@ -14,12 +18,12 @@ public:
 	virtual ~UniformSet();
 
 	// must be called from render thread
-	DRReturn addLocationToUniform(const char* name, ShaderProgram* program);
+	virtual DRReturn addLocationToUniform(const char* name, UniLib::model::ShaderProgram* program);
 	// must be called from render thread
-	DRReturn removeLocationFromUniform(const char* name, ShaderProgram* program);
+	virtual DRReturn removeLocationFromUniform(const char* name, UniLib::model::ShaderProgram* program);
 
 	// must be called from render thread, after binding shader
-	void updateUniforms(ShaderProgram* program);
+	virtual void updateUniforms(UniLib::model::ShaderProgram* program);
 
 protected:
 	

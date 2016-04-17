@@ -10,8 +10,8 @@ namespace HUD {
 
 	RootNode::~RootNode()
 	{
-		for (std::list<ContainerNode*>::iterator it = mContainers.begin(); it != mContainers.end(); it++) {
-			DR_SAVE_DELETE(*it);
+		for (ContainerMap::iterator it = mContainers.begin(); it != mContainers.end(); it++) {
+			DR_SAVE_DELETE(it->second);
 		}
 		mContainers.clear();
 	}
@@ -35,19 +35,19 @@ namespace HUD {
 		Uint32 maxMsPerFrame = (Uint32)floor(1000.0f / (float)mFPS_Updates);
 		while (true) {
 			float timeSinceLastFrame = (float)lastDiff / 1000.0f;
-			std::list<ContainerNode*>::iterator it;
+			ContainerMap::iterator it;
 			lock();
 			for (it = mContainers.begin(); it != mContainers.end(); it++)
 			{
-				if ((*it)->move(timeSinceLastFrame)) {
-					DR_SAVE_DELETE(*it);
+				if (it->second->move(timeSinceLastFrame)) {
+					DR_SAVE_DELETE(it->second);
 					it = mContainers.erase(it);
 				}
 			}
 			// check if we need rerendering
 			bool dirtyFlag = false;
 			for (it = mContainers.begin(); it != mContainers.end(); it++) {
-				if ((*it)->isDirty()) {
+				if (it->second->isDirty()) {
 					dirtyFlag = true;
 					break;
 				}
@@ -66,7 +66,35 @@ namespace HUD {
 	void RootNode::addingContainerNode(ContainerNode* container)
 	{
 		lock();
-		mContainers.push_back(container);
+		//mContainers.push_back(container);
+		mContainers.insert(ContainerMapPair(container->getId(), container));
 		unlock();
+	}
+
+	ContainerNode* RootNode::findContainerNode(HASH id)
+	{
+		ContainerNode* result = NULL;
+		lock();
+		ContainerMap::iterator it = mContainers.find(id);
+		if (it != mContainers.end()) {
+			result = it->second;
+		}
+		unlock();
+		return result;
+
+	}
+
+	DRReturn RootNode::deletingContainerNode(HASH id)
+	{
+		lock();
+		ContainerMap::iterator it = mContainers.find(id);
+		if (it != mContainers.end()) {
+			DR_SAVE_DELETE(it->second);
+			mContainers.erase(id);
+			unlock();
+			return DR_OK;
+		}
+		unlock();
+		return DR_ERROR;
 	}
 }

@@ -7,7 +7,7 @@ namespace HUD {
 	class Text : public Element
 	{	
 	public:
-		Text();
+		Text(const char* name);
 		virtual ~Text();
 	protected:
 	};

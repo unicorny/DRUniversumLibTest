@@ -21,7 +21,8 @@
 #include "view/TextureMaterial.h"
 #include "lib/Timer.h"
 //#include "FrameBuffer.h"
-#include "RenderToTexture.h"
+
+#include "generator/RenderToTexture.h"
 
 #include "Hud/Font.h"
 
@@ -242,7 +243,7 @@ DRReturn load()
 	gWorld->addStaticGeometrie(floor);
 
 	// render to texture test
-	RenderToTexture* testTask = new RenderToTexture(texture);
+	generator::RenderToTexture* testTask = new generator::RenderToTexture(texture);
 	Material* renderMaterial = new Material;
 	renderMaterial->setShaderProgram(shaderManager->getShaderProgram("frameBuffer.vert", "speedTest.frag"));
 	testTask->setMaterial(renderMaterial);

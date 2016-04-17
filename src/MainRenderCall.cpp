@@ -2,6 +2,7 @@
 #include "GL/glew.h"
 #include <sdl/SDL_opengl.h>
 #include "MicroSpacecraft.h"
+#include "FrameBuffer.h"
 
 MainRenderCall::MainRenderCall()
 {
@@ -36,7 +37,7 @@ PreRenderCall::PreRenderCall()
 DRReturn PreRenderCall::render(float timeSinceLastFrame)
 {
 	//printf("[MainRenderCall::render]\n");
-	glBindFramebuffer(GL_FRAMEBUFFER, 0);
+	FrameBuffer::unbind();
 	glViewport(0, 0, g_v2WindowLength.x, g_v2WindowLength.y);
 	glClear( GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT );
 

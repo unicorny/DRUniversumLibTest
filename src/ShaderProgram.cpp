@@ -50,6 +50,7 @@ DRReturn Shader::init(const char* shaderFile, UniLib::model::ShaderType shaderTy
 			UniLib::EngineLog.writeToLog("<font color='red'>Fehler:</font>shader (%s) compile error: %s", shaderFile, str);
 	}
 	if(DRGrafikError("Shader::init create Shader")) LOG_WARNING("Fehler bei shader init");	
+	
 
 	return DR_OK;
 }
@@ -101,6 +102,7 @@ DRReturn ShaderProgram::init(UniLib::model::ShaderPtr vertexShader, UniLib::mode
 
 	// Create a program object and attach the two compiled shaders.
 	mProgram = glCreateProgram();
+	mId = mProgram;
 	glAttachShader( mProgram, vertexShaderId );
 	glAttachShader( mProgram, fragmentShaderId );
 
@@ -124,6 +126,7 @@ DRReturn ShaderProgram::init(UniLib::model::ShaderPtr vertexShader, UniLib::mode
 	}
 
 	if(DRGrafikError("ShaderProgram::init create programm")) LOG_WARNING("Fehler bei shader init");
+	setLoadingState(UniLib::LOADING_STATE_FULLY_LOADED);
 	return DR_OK;
 }
 

@@ -1,7 +1,8 @@
 #include "HUD/HUDElement.h"
 
 namespace HUD {
-	Element::Element()
+	Element::Element(const char* name)
+		: ContainerNode(name)
 	{
 
 	}

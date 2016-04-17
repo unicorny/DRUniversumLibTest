@@ -20,6 +20,10 @@ namespace HUD {
 		DRReturn init(DRVector2i screenResolution, int fps_update = 15);
 		void exit();
 		void addingContainerNode(ContainerNode* container);
+		//! \brief delete container node if exist
+		//! \return DR_OK if container node exist and could be deleted
+		DRReturn deletingContainerNode(HASH id);
+		__inline__ ContainerNode* findContainerNode(HASH id);
 	protected:
 		//! move function for HUD, independent from rest of game
 		//! \brief will be called every time from thread, when condSignal was called
@@ -31,7 +35,9 @@ namespace HUD {
 		DRVector2i mScreenResolution;
 		int		   mFPS_Updates;
 		bool	mExitCalled;
-		std::list<ContainerNode*> mContainers;
+		typedef std::map<HASH, ContainerNode*> ContainerMap;
+		typedef std::pair<HASH, ContainerNode*> ContainerMapPair;
+		ContainerMap mContainers;
 
 	};
 }
