@@ -20,11 +20,11 @@
 #include "Material.h"
 #include "view/TextureMaterial.h"
 #include "lib/Timer.h"
+#include "hud/HUDRootNode.h"
 //#include "FrameBuffer.h"
 
 #include "generator/RenderToTexture.h"
 
-#include "Hud/Font.h"
 
 #include "SpaceCraftNode.h"
 
@@ -36,6 +36,7 @@ using namespace UniLib;
 
 MainRenderCall mainRenderCall;
 PreRenderCall  preRenderCall;
+HUD::RootNode* g_HUDRootNode = NULL;
 SDL_Window* g_pSDLWindow = NULL;
 controller::InputCamera* gInputCamera = NULL;
 controller::CPUSheduler* gCPUScheduler = NULL;
@@ -44,8 +45,7 @@ DRVector2i  g_v2WindowLength = DRVector2i(0);
 World* gWorld = NULL;
 static BindToRender gBindToRender;
 lib::Timer* gTimer = NULL;
-FontManager* gFont = NULL;
-DRFont* gTestFont = NULL;
+
 
 //********************************************************************************************************************
 const char* DRGetGLErrorText(GLenum eError)
@@ -115,9 +115,6 @@ DRReturn load()
 	controller::ShaderManager* shaderManager = controller::ShaderManager::getInstance();
 	shaderManager->init();
 
-	gFont = new FontManager;
-	gTestFont = new DRFont(gFont, "data/font/MandroidBB.ttf");
-	gTestFont->loadGlyph(L'o');
 	
 	int L1CacheSize = SDL_GetCPUCacheLineSize();
 	int CPUCoreCount = SDL_GetCPUCount();
@@ -264,6 +261,10 @@ DRReturn load()
 	gInputCamera->setAspectRatio(g_v2WindowLength.x / g_v2WindowLength.y);
 	gInputCamera->setFarClipping(1000.0f);
 
+	// HUD
+	g_HUDRootNode = new HUD::RootNode();
+	g_HUDRootNode->init(g_v2WindowLength);
+
 	// loading from json
 	// TODO: parallele load with CPUTasks
 
@@ -277,8 +278,8 @@ DRReturn load()
 
 void ende()
 {
-	DR_SAVE_DELETE(gTestFont);
-	DR_SAVE_DELETE(gFont);
+	g_HUDRootNode->exit();
+	DR_SAVE_DELETE(g_HUDRootNode);
 	controller::BlockTypeManager::getInstance()->exit();
 	controller::TextureManager::getInstance()->exit();
 	controller::BaseGeometrieManager::getInstance()->exit();
@@ -305,7 +306,6 @@ DRReturn gameLoop()
 		char buffer[256]; memset(buffer, 0, 256);
 		sprintf(buffer, "FPS: %f", 1.0f/(float)gpuScheduler->getSecondsSinceLastFrame());
 		SDL_SetWindowTitle(g_pSDLWindow, buffer);
-		gTestFont->bind();
 		if(gpuScheduler->updateEveryRendering()) {
 			LOG_ERROR("error in GPUScheduler", DR_ERROR);
 		}

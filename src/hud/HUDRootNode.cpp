@@ -1,32 +1,81 @@
+#include "MicroSpacecraft.h"
 #include "HUD/HUDRootNode.h"
 #include "HUD/HUDContainerNode.h"
+#include "view/Material.h"
+#include "view/Geometrie.h"
+#include "controller/BindToRenderer.h"
+#include "controller/BaseGeometrieManager.h"
+#include "controller/GPUScheduler.h"
+#include "controller/ShaderManager.h"
+#include "Material.h"
+
+using namespace UniLib;
 
 namespace HUD {
+	// ****************************************************************
+	// RootNode RenderCall
+	// ****************************************************************
+	// if render return not DR_OK, Call will be removed from List and kicked will be called
+	DRReturn RootNodeRenderCall::render(float timeSinceLastFrame)
+	{
+		assert(mMaterial.getResourcePtrHolder());
+		mMaterial->bind();
+		mParent->getTextFont()->bind();
+		controller::BaseGeometrieManager::getInstance()->getGeometrie(controller::BASE_GEOMETRIE_PLANE)->render();
+
+		return DR_OK;
+	}
+
+	void RootNodeRenderCall::kicked()
+	{
+		delete this;
+	}
+	// will be called if render call need to much time
+	// \param percent used up percent time of render main loop
+	void RootNodeRenderCall::youNeedToLong(float percent)
+	{
+
+	}
+
+	// **************************************************************
+	// Root Node
+	// **************************************************************
+
 	RootNode::RootNode()
-		: Thread("HUD"), mExitCalled(false)
+		: Thread("HUD"), ContainerNode("ROOT", NULL), mExitCalled(false), mRenderCall(NULL)
 	{
 
 	}
 
 	RootNode::~RootNode()
 	{
-		for (ContainerMap::iterator it = mContainers.begin(); it != mContainers.end(); it++) {
-			DR_SAVE_DELETE(it->second);
+		if(mRenderCall) {
+			controller::GPUScheduler::getInstance()->unregisterGPURenderCommand(mRenderCall, controller::GPU_SCHEDULER_COMMAND_AFTER_RENDERING);
+			DR_SAVE_DELETE(mRenderCall);
 		}
-		mContainers.clear();
+		DR_SAVE_DELETE(mFont);
+		DR_SAVE_DELETE(mFontManager);
+
 	}
 
 	DRReturn RootNode::init(DRVector2i screenResolution, int fps_update)
 	{
 		mScreenResolution = screenResolution;
 		mFPS_Updates = fps_update;
+		mFontManager = new FontManager;
+
+		// test
+		mFont = new DRFont(mFontManager, "data/font/MandroidBB.ttf");
+		mFont->loadGlyph(L'o');
+
+		condSignal();
 		return DR_OK;
 	}
 	void RootNode::exit()
 	{
-		lock();
+		threadLock();
 		mExitCalled = true;
-		unlock();
+		threadUnlock();
 	}
 	int RootNode::ThreadFunction()
 	{
@@ -35,66 +84,30 @@ namespace HUD {
 		Uint32 maxMsPerFrame = (Uint32)floor(1000.0f / (float)mFPS_Updates);
 		while (true) {
 			float timeSinceLastFrame = (float)lastDiff / 1000.0f;
-			ContainerMap::iterator it;
-			lock();
-			for (it = mContainers.begin(); it != mContainers.end(); it++)
-			{
-				if (it->second->move(timeSinceLastFrame)) {
-					DR_SAVE_DELETE(it->second);
-					it = mContainers.erase(it);
-				}
+			threadLock();
+			move(timeSinceLastFrame);
+			threadUnlock();
+
+			// create render call if first rendering has finished!
+			if (!mRenderCall) {
+				//if (mRendererCasted->isTaskFinished()) {
+					//view::TextureMaterial* tm = new TextureMaterial;
+					view::Material* tm = new Material;
+					view::MaterialPtr m = view::MaterialPtr(tm);
+					controller::ShaderManager* shaderManager = controller::ShaderManager::getInstance();
+					tm->setShaderProgram(shaderManager->getShaderProgram("renderToTexture.vert", "renderToTexture.frag"));
+					//tm->setTexture(mRendererCasted->getTexture());
+					//tm->setTexture(mFont->getTexture());
+					mRenderCall = new RootNodeRenderCall(this, m);
+					controller::GPUScheduler::getInstance()->registerGPURenderCommand(mRenderCall, controller::GPU_SCHEDULER_COMMAND_AFTER_RENDERING);
+				//}
 			}
-			// check if we need rerendering
-			bool dirtyFlag = false;
-			for (it = mContainers.begin(); it != mContainers.end(); it++) {
-				if (it->second->isDirty()) {
-					dirtyFlag = true;
-					break;
-				}
-			}
-			unlock();
-			
 
 			// time adjust code
 			lastDiff = SDL_GetTicks() - startTicks;
-			if(lastDiff < maxMsPerFrame)
-			SDL_Delay(maxMsPerFrame- lastDiff);
-			startTicks = SDL_GetTicks();			
+			if (lastDiff < maxMsPerFrame)
+				SDL_Delay(maxMsPerFrame - lastDiff);
+			startTicks = SDL_GetTicks();
 		}
-	}
-
-	void RootNode::addingContainerNode(ContainerNode* container)
-	{
-		lock();
-		//mContainers.push_back(container);
-		mContainers.insert(ContainerMapPair(container->getId(), container));
-		unlock();
-	}
-
-	ContainerNode* RootNode::findContainerNode(HASH id)
-	{
-		ContainerNode* result = NULL;
-		lock();
-		ContainerMap::iterator it = mContainers.find(id);
-		if (it != mContainers.end()) {
-			result = it->second;
-		}
-		unlock();
-		return result;
-
-	}
-
-	DRReturn RootNode::deletingContainerNode(HASH id)
-	{
-		lock();
-		ContainerMap::iterator it = mContainers.find(id);
-		if (it != mContainers.end()) {
-			DR_SAVE_DELETE(it->second);
-			mContainers.erase(id);
-			unlock();
-			return DR_OK;
-		}
-		unlock();
-		return DR_ERROR;
 	}
 }

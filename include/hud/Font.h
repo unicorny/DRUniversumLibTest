@@ -17,7 +17,6 @@ public:
 
 	void loadGlyph(FT_ULong c);
 	__inline__ void bind() {glBindTexture(GL_TEXTURE_2D, mTextureId);}
-
 protected:
 	__inline__ FT_UInt getGlyphIndex(FT_ULong charcode) { return FT_Get_Char_Index(mFontFace, charcode); }
 

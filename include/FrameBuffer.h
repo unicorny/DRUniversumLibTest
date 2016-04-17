@@ -17,6 +17,7 @@ class FrameBuffer : public UniLib::view::FrameBuffer
 {
 public:
 	FrameBuffer(UniLib::view::TexturePtr texture) : UniLib::view::FrameBuffer(texture), mFrameBufferId(0) {}
+	FrameBuffer() : mFrameBufferId(0) {}
 	virtual ~FrameBuffer() {};
 
 	virtual DRReturn setup();

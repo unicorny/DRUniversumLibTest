@@ -20,6 +20,7 @@ public:
 class MultiTextureMaterial : public UniLib::view::MultiTextureMaterial
 {
 public:
+	MultiTextureMaterial(size_t textureCount) : UniLib::view::MultiTextureMaterial(textureCount) {}
 	virtual void bind();
 
 };

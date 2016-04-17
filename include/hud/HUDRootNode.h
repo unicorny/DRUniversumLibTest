@@ -2,15 +2,40 @@
 #define __DR_MICRO_SPACECRAFT_HUD_ROOT_NODE_H
 
 #include "lib/Thread.h"
+#include "HUDContainerNode.h"
 #include "controller/GPUTask.h"
+#include "controller/GPUScheduler.h"
+#include "Font.h"
+
+namespace UniLib {
+	namespace view {
+		class Material;
+		typedef DRResourcePtr<Material> MaterialPtr;
+	}
+}
 
 namespace HUD {
 
 	class ContainerNode;
+	class RootNode;
 
-	
+	class RootNodeRenderCall : public  UniLib::controller::GPURenderCall
+	{
+	public:
+		RootNodeRenderCall(RootNode* parent, UniLib::view::MaterialPtr material) : mMaterial(material), mParent(parent) {}
 
-	class RootNode : UniLib::lib::Thread
+		virtual DRReturn render(float timeSinceLastFrame);
+		// if render return not DR_OK, Call will be removed from List and kicked will be called
+		virtual void kicked();
+		// will be called if render call need to much time
+		// \param percent used up percent time of render main loop
+		virtual void youNeedToLong(float percent);
+	protected:
+		UniLib::view::MaterialPtr mMaterial;
+		RootNode* mParent;
+	};
+
+	class RootNode : public UniLib::lib::Thread, public ContainerNode
 	{
 	public:
 		RootNode();
@@ -19,11 +44,9 @@ namespace HUD {
 		// \param fps_update how many times per second should the HUD update
 		DRReturn init(DRVector2i screenResolution, int fps_update = 15);
 		void exit();
-		void addingContainerNode(ContainerNode* container);
-		//! \brief delete container node if exist
-		//! \return DR_OK if container node exist and could be deleted
-		DRReturn deletingContainerNode(HASH id);
-		__inline__ ContainerNode* findContainerNode(HASH id);
+
+		__inline__ FontManager* getFontManager() { return mFontManager; }
+		__inline__ DRFont* getTextFont() { return mFont; }
 	protected:
 		//! move function for HUD, independent from rest of game
 		//! \brief will be called every time from thread, when condSignal was called
@@ -35,9 +58,11 @@ namespace HUD {
 		DRVector2i mScreenResolution;
 		int		   mFPS_Updates;
 		bool	mExitCalled;
-		typedef std::map<HASH, ContainerNode*> ContainerMap;
-		typedef std::pair<HASH, ContainerNode*> ContainerMapPair;
-		ContainerMap mContainers;
+		RootNodeRenderCall* mRenderCall;
+
+		// for testing
+		FontManager* mFontManager;
+		DRFont* mFont;
 
 	};
 }

@@ -7,7 +7,9 @@ DRReturn FrameBuffer::setup()
 {
 	glActiveTexture(GL_TEXTURE0);
 	
-	glGenFramebuffers(1, &mFrameBufferId);
+	if (!mFrameBufferId) {
+		glGenFramebuffers(1, &mFrameBufferId);
+	}
 	glBindFramebuffer(GL_FRAMEBUFFER, mFrameBufferId);
 	glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0,
 		GL_TEXTURE_2D, mTexture->getTextureId(), 0);
