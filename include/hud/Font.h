@@ -8,6 +8,17 @@
 #include "GL/glew.h"
 #include <sdl/SDL_opengl.h>
 
+namespace UniLib {
+	namespace view {
+		class VisibleNode;
+	}
+	namespace model {
+		namespace geometrie {
+			class BaseGeometrie;
+		}
+	}
+}
+
 class FontManager;
 class DRFont 
 {
@@ -23,6 +34,33 @@ protected:
 	FT_Face mFontFace;
 	GLuint  mTextureId;
 
+	void addPointToBezier(DRVector2i p, bool onCurve = true);
+	void printBeziers();
+	
+	void addVertex(DRVector2 vertex);
+
+	struct Bezier {
+		Bezier(DRVector2* points, int pointCount) : points(points), pointCount(pointCount) {}
+		~Bezier() { }
+		DRString getAsString();
+		void plot(u8* pixels, DRVector2i textureSize);
+		Bezier* gradreduktion();
+		
+		void de_casteljau(bool freeMemory = true);
+		DRVector2* points;
+		int pointCount;
+
+	private:
+		void plotPoint(u8* pixels, DRVector2i textureSize, DRVector2 pos, DRColor color);
+		void gradreduktion4();
+		DRVector2 calculatePointOnBezierRecursive(DRVector2* points, int pointCount, float t);
+
+		
+	};
+	std::queue<DRVector2i> mTempPoints;
+	std::list<Bezier> mBezierKurves;
+	UniLib::view::VisibleNode* mGeometrie;
+	UniLib::model::geometrie::BaseGeometrie* mBaseGeo;
 };
 
 class FontManager

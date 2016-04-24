@@ -66,7 +66,8 @@ namespace HUD {
 
 		// test
 		mFont = new DRFont(mFontManager, "data/font/MandroidBB.ttf");
-		//mFont->loadGlyph(L'o');
+		//mFont = new DRFont(mFontManager, "data/font/arial.ttf");
+		mFont->loadGlyph(L'G');
 
 		condSignal();
 		return DR_OK;
@@ -91,7 +92,7 @@ namespace HUD {
 
 			// create render call if first rendering has finished!
 			if (!mRenderCall) {
-				//if (mRendererCasted->isTaskFinished()) {
+				if (mRendererCasted->isTaskFinished()) {
 					//view::TextureMaterial* tm = new TextureMaterial;
 					view::Material* tm = new Material;
 					view::MaterialPtr m = view::MaterialPtr(tm);
@@ -101,7 +102,7 @@ namespace HUD {
 					//tm->setTexture(mFont->getTexture());
 					mRenderCall = new RootNodeRenderCall(this, m);
 					controller::GPUScheduler::getInstance()->registerGPURenderCommand(mRenderCall, controller::GPU_SCHEDULER_COMMAND_AFTER_RENDERING);
-				//}
+				}
 			}
 
 			// time adjust code

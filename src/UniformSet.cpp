@@ -92,4 +92,5 @@ void UniformSet::updateUniforms(model::ShaderProgram* program)
 	}
 	//unsetDirty();
 	unlock();
+	DRGrafikError("error by updating uniforms");
 }

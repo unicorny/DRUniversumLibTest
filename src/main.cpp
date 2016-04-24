@@ -85,7 +85,7 @@ DRReturn load()
 	UniLib::setBindToRenderer(&gBindToRender);
 
 	controller::GPUScheduler::getInstance()->registerGPURenderCommand(&preRenderCall, controller::GPU_SCHEDULER_COMMAND_PREPARE_RENDERING);
-	controller::GPUScheduler::getInstance()->registerGPURenderCommand(&mainRenderCall, controller::GPU_SCHEDULER_COMMAND_AFTER_RENDERING);
+	controller::GPUScheduler::getInstance()->registerGPURenderCommand(&mainRenderCall, controller::GPU_SCHEDULER_COMMAND_AFTER_AFTER_RENDERING);
 	
 	controller::InputControls* input = controller::InputControls::getInstance();
 	input->setMapping(SDL_SCANCODE_LEFT, controller::INPUT_ROTATE_LEFT);
@@ -198,6 +198,8 @@ DRReturn load()
 
 	// tell GL to only draw onto a pixel if the shape is closer to the viewer
 	glEnable (GL_DEPTH_TEST); // enable depth-testing
+	glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+	glEnable(GL_BLEND);
 	glDepthFunc (GL_LESS); // depth-testing interprets a smaller value as "closer"
 
 	// sync buffer swap with monitor's vertical refresh rate
@@ -237,7 +239,7 @@ DRReturn load()
 	model::Position* pos = floor->getPosition();
 	pos->setScale(DRVector3(400.0f));
 	pos->setPosition(DRVector3(-200.0f, -50.0f, -200.0f));
-	gWorld->addStaticGeometrie(floor);
+	
 
 	// render to texture test
 	generator::RenderToTexture* testTask = new generator::RenderToTexture(texture);
@@ -264,6 +266,7 @@ DRReturn load()
 	// HUD
 	g_HUDRootNode = new HUD::RootNode();
 	g_HUDRootNode->init(g_v2WindowLength);
+	//gWorld->addStaticGeometrie(floor);
 	//*/
 	// loading from json
 	// TODO: parallele load with CPUTasks
