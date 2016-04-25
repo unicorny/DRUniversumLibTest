@@ -37,6 +37,7 @@ void Texture::bind()
 
 DRReturn Texture::_uploadToGPU()
 {
+	DRGrafikError("[view::Texture::_uploadToGPU] clear opengl error");
 	GLint internalFormat = 0;
 	GLenum format = mTextureModel->getFormat();
 	if (format == GL_RGBA) internalFormat = 4;
@@ -44,22 +45,23 @@ DRReturn Texture::_uploadToGPU()
 	else LOG_ERROR("unknown format", DR_ERROR);
 	DRVector2i size = mTextureModel->getSize();
 	if (mTextureID == 0) createTextureMemory(size, format, internalFormat);
-	if (mTextureModel->hasImageData()) {
+	else bind();
+	if (mTextureModel->hasImageData() && mTextureModel->getPixels()) {
 		u8* pixels = mTextureModel->getPixels();
-		glGenBuffers(1, &mPboID);
+		if(!mPboID)
+			glGenBuffers(1, &mPboID);
 		glBindBuffer(GL_PIXEL_UNPACK_BUFFER, mPboID);
-
 		glBufferData(GL_PIXEL_UNPACK_BUFFER, size.x*size.y*internalFormat,
 			pixels, GL_STREAM_DRAW);
-
+		
 		glTexSubImage2D(GL_TEXTURE_2D, 0,
 			0, 0, size.x, size.y,
 			format, GL_UNSIGNED_BYTE, NULL);
-
-		glBindBuffer(GL_PIXEL_UNPACK_BUFFER, 0);
+		DRGrafikError("after texSubImage2D");
+		glBindBuffer(GL_PIXEL_UNPACK_BUFFER, 0); 
 	}
 	setLoadingState(LOADING_STATE_FULLY_LOADED);
-	return DRGrafikError("[Texture::pixelsCopyToRenderer] Error by copying pixels to OpenGL");
+	return DRGrafikError("[view::Texture::_uploadToGPU] Error by copying pixels to OpenGL");
 }
 
 DRReturn Texture::createTextureMemory(DRVector2i size, GLenum format, GLint internalFormat)

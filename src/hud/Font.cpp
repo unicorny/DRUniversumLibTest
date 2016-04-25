@@ -1,8 +1,9 @@
 #include "hud/Font.h"
 #include "Texture.h"
-#include "MicroSpacecraft.h"
+
 #include "view/VisibleNode.h"
 #include "controller/ShaderManager.h"
+#include "controller/TextureManager.h"
 #include "Material.h"
 #include "Geometrie.h"
 #include "model/geometrie/BaseGeometrie.h"
@@ -11,7 +12,7 @@
 using namespace UniLib;
 
 DRFont::DRFont(FontManager* fm, const char* filename)
-	: mFontFace(NULL), mGeometrie(NULL)
+	: mFontFace(NULL), mGeometrieReady(false), mGeometrie(NULL)
 {
 	/* 
 	loading from memory:
@@ -43,7 +44,6 @@ DRFont::DRFont(FontManager* fm, const char* filename)
 DRFont::~DRFont()
 {
 	FT_Done_Face(mFontFace);
-	glDeleteTextures(1, &mTextureId);
 	//DR_SAVE_DELETE(mGeometrie);
 	
 }
@@ -103,13 +103,7 @@ void DRFont::loadGlyph(FT_ULong c)
 		GLenum format = GL_RGBA;
 		u8* pixels = new u8[textureSize.x*textureSize.y * 4];
 		memset(pixels, 0, sizeof(u8)*textureSize.x*textureSize.y * 4);
-		// create texture
-		glGenTextures(1, &mTextureId);
-		glBindTexture(GL_TEXTURE_2D, mTextureId);
-		//GL_NEAREST
-		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
-		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
-
+		
 		for (short contur = 0; contur < conturCount; contur++) {
 			short start = 0;
 			FT_Vector firstPoint;
@@ -197,8 +191,11 @@ void DRFont::loadGlyph(FT_ULong c)
 		printf("[DRFont::loadGlyph] plot all curves from on glyph in %d ms\n",
 			SDL_GetTicks() - startTicks);
 		//printBeziers();
-		glTexImage2D(GL_TEXTURE_2D, 0, 4, textureSize.x, textureSize.y, 0,
-			format, GL_UNSIGNED_BYTE, pixels);
+		mTexture = controller::TextureManager::getInstance()->getEmptyTexture(textureSize, GL_RGBA);
+		mTexture->loadFromMemory(pixels);
+		/*glTexImage2D(GL_TEXTURE_2D, 0, 4, textureSize.x, textureSize.y, 0,
+			format, GL_UNSIGNED_BYTE, pixels);*/
+		mTexture->saveIntoFile("testFont.jpg");
 		DR_SAVE_DELETE_ARRAY(pixels);
 		}
 	for (std::list<Bezier>::iterator it = mBezierKurves.begin(); it != mBezierKurves.end(); it++) {
@@ -211,7 +208,8 @@ void DRFont::loadGlyph(FT_ULong c)
 		FT_LOAD_NO_BITMAP);*/
 	
 	mBaseGeo->copyToFastAccess();
-	gWorld->addStaticGeometrie(mGeometrie);
+	mGeometrieReady = true;
+	//gWorld->addStaticGeometrie(mGeometrie);
 }
 
 void DRFont::addVertex(DRVector2 vertex)
@@ -304,15 +302,18 @@ void DRFont::Bezier::plotPoint(u8* pixels, DRVector2i textureSize, DRVector2 pos
 {
 //	printf("[Font::Bezier::plotPoint] pos: %f, %f, textureSize: %d, %d\n", 
 	//	pos.x, pos.y, textureSize.x, textureSize.y);
+	pos.y = textureSize.y - pos.y;
 	int index[4];
 	float alpha[4];
 	int floorX = floor(pos.x);
 	float distXFloor = pos.x - floorX;
 	int floorY = floor(pos.y);
+	if (floorY == textureSize.y) floorY--;
 	float distYFloor = pos.y - floorY;
 	int ceilX = ceil(pos.x);
 	float distXCeil = ceilX - pos.x;
 	int ceilY = ceil(pos.y);
+	if (ceilY == textureSize.y) ceilY--;
 	float distYCeil = ceilY - pos.y;
 
 	//printf("floorX: %d, ceilX: %d, floorY: %d, ceilY: %d\n", 

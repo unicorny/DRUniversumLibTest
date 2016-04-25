@@ -24,7 +24,10 @@ DRReturn UniformSet::addLocationToUniform(const char* name, model::ShaderProgram
 		return DR_OK;
 	}
 	else {
-		return addUniformMapping(name, (void*)glGetUniformLocation(sp->getProgram(), name), program->getID());
+		DRReturn result = addUniformMapping(name, (void*)glGetUniformLocation(sp->getProgram(), name), program->getID());
+		if (result || DRGrafikError("error by getting uniform location")) {
+			LOG_ERROR("Error by addLocationToUniform", DR_ERROR);
+		}
 	}
 }
 DRReturn UniformSet::removeLocationFromUniform(const char* name, model::ShaderProgram* program)

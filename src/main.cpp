@@ -266,7 +266,7 @@ DRReturn load()
 	// HUD
 	g_HUDRootNode = new HUD::RootNode();
 	g_HUDRootNode->init(g_v2WindowLength);
-	//gWorld->addStaticGeometrie(floor);
+	gWorld->addStaticGeometrie(floor);
 	//*/
 	// loading from json
 	// TODO: parallele load with CPUTasks

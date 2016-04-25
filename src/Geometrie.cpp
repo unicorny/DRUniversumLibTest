@@ -79,7 +79,7 @@ DRReturn Geometrie::uploadToGPU()
 	glBindBuffer(GL_ARRAY_BUFFER, 0);
 	glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, 0);
 	glBindVertexArray(0);
-
+	if (DRGrafikError("error by uploading geometrie to GPU")) LOG_ERROR("error in geometrie", DR_ERROR);
 	return DR_OK;
 }
 

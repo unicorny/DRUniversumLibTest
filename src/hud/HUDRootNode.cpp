@@ -20,7 +20,8 @@ namespace HUD {
 	{
 		assert(mMaterial.getResourcePtrHolder());
 		mMaterial->bind();
-		mParent->getTextFont()->bind();
+		if (mParent->getTextFont()->isGeometrieReady()) mParent->getTextFont()->setStaticGeometrie();
+		//mParent->getTextFont()->bind();
 		controller::BaseGeometrieManager::getInstance()->getGeometrie(controller::BASE_GEOMETRIE_PLANE)->render();
 
 		return DR_OK;
@@ -42,7 +43,7 @@ namespace HUD {
 	// **************************************************************
 
 	RootNode::RootNode()
-		: Thread("HUD"), ContainerNode("ROOT", NULL), mExitCalled(false), mRenderCall(NULL)
+		: Thread("HUD"), ContainerNode("ROOT", NULL), mExitCalled(false), mRenderCall(NULL), mFont(NULL)
 	{
 
 	}
@@ -64,10 +65,7 @@ namespace HUD {
 		mFPS_Updates = fps_update;
 		mFontManager = new FontManager;
 
-		// test
-		mFont = new DRFont(mFontManager, "data/font/MandroidBB.ttf");
-		//mFont = new DRFont(mFontManager, "data/font/arial.ttf");
-		mFont->loadGlyph(L'G');
+		
 
 		condSignal();
 		return DR_OK;
@@ -90,16 +88,22 @@ namespace HUD {
 			move(timeSinceLastFrame);
 			threadUnlock();
 
+			if (!mFont) {
+				// test
+				mFont = new DRFont(mFontManager, "data/font/MandroidBB.ttf");
+				//mFont = new DRFont(mFontManager, "data/font/arial.ttf");
+				mFont->loadGlyph(L'G');
+			}
+
 			// create render call if first rendering has finished!
 			if (!mRenderCall) {
 				if (mRendererCasted->isTaskFinished()) {
-					//view::TextureMaterial* tm = new TextureMaterial;
-					view::Material* tm = new Material;
+					view::TextureMaterial* tm = new TextureMaterial;
 					view::MaterialPtr m = view::MaterialPtr(tm);
 					controller::ShaderManager* shaderManager = controller::ShaderManager::getInstance();
 					tm->setShaderProgram(shaderManager->getShaderProgram("renderToTexture.vert", "renderToTexture.frag"));
 					//tm->setTexture(mRendererCasted->getTexture());
-					//tm->setTexture(mFont->getTexture());
+					tm->setTexture(mFont->getTexture());
 					mRenderCall = new RootNodeRenderCall(this, m);
 					controller::GPUScheduler::getInstance()->registerGPURenderCommand(mRenderCall, controller::GPU_SCHEDULER_COMMAND_AFTER_RENDERING);
 				}
