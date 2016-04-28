@@ -122,7 +122,7 @@ DRReturn load()
 	gCPUScheduler = new controller::CPUSheduler(CPUCoreCount, "mainSch");
 	gTimer = new lib::Timer;
 	controller::TextureManager* textureManager = controller::TextureManager::getInstance();
-	textureManager->init(gCPUScheduler, gTimer);
+	textureManager->init(gTimer);
 	std::list<std::string> configFileNames;
 	configFileNames.push_back("defaultMaterials.json");
 	controller::BlockTypeManager::getInstance()->initAsyn(&configFileNames, gCPUScheduler);
@@ -179,12 +179,16 @@ DRReturn load()
 		EngineLog.writeToLog("Fehler beim erstellen des OpenGL Contextes: %s\n", SDL_GetError());
 		return DR_ERROR;
 	}
+	
 	if(SDL_GL_MakeCurrent(g_pSDLWindow, g_glContext))
 	{
 		EngineLog.writeToLog("Fehler beim aktivieren des OpenGL Contextes: %s\n", SDL_GetError());
 	};
+	
 	glewExperimental = GL_TRUE;
 	GLenum status = glewInit();
+	// glew init throw an error, we can savely ignore it
+	glGetError();
 	if (status != GLEW_OK)
 	{
 		EngineLog.writeToLog("GLEW Error: %s", glewGetErrorString(status));
@@ -196,24 +200,32 @@ DRReturn load()
 	printf ("Renderer: %s\n", renderer);
 	printf ("OpenGL version supported %s\n", version);
 
+	GLint maxTextureSize = 0;
+	glGetIntegerv(GL_MAX_TEXTURE_SIZE, &maxTextureSize);
+	printf("max textureSize: %d\n", maxTextureSize);
+
 	// tell GL to only draw onto a pixel if the shape is closer to the viewer
 	glEnable (GL_DEPTH_TEST); // enable depth-testing
+	DRGrafikError("after eanbling depth test");
 	glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+	DRGrafikError("after setting blend func");
 	glEnable(GL_BLEND);
+	DRGrafikError("after enabling blend");
 	glDepthFunc (GL_LESS); // depth-testing interprets a smaller value as "closer"
-
+	DRGrafikError("after setting depth func");
 	// sync buffer swap with monitor's vertical refresh rate
 	//SDL_GL_SetSwapInterval(1);
 
 	// set background color
 	glClearColor( 0.0, 0.0, 0.2, 1.0 );
-
+	DRGrafikError("after setting clear color");
 
 	//OpenGL einrichten für Ohrtogonale Projection
 	int w = 0, h = 0;
 	SDL_GL_GetDrawableSize(g_pSDLWindow, &w, &h);
 	g_v2WindowLength = DRVector2i(w, h);
 	
+	DRGrafikError("after setting opengl states");
 
 	g_v2WindowLength.x = static_cast<float>(w);
 	g_v2WindowLength.y = static_cast<float>(h);
@@ -247,7 +259,6 @@ DRReturn load()
 	renderMaterial->setShaderProgram(shaderManager->getShaderProgram("frameBuffer.vert", "speedTest.frag"));
 	testTask->setMaterial(renderMaterial);
 	controller::TaskPtr renderTestTask(testTask);
-//	g_FrameBufferRenderCall.addRenderToTextureTask(testTask);
 	testTask->scheduleTask(renderTestTask);
 
 	// first block
@@ -272,6 +283,7 @@ DRReturn load()
 	// TODO: parallele load with CPUTasks
 
 	//g_FrameBuffer.init();
+	DRGrafikError("on init end");
 	EngineLog.writeToLog("Loading Zeit: %d ms", SDL_GetTicks());
 
 	return DR_OK;

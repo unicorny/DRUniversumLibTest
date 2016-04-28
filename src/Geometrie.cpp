@@ -89,7 +89,13 @@ DRReturn Geometrie::render()
 	glBindVertexArray (mVAO);
 	//glDrawArrays(mRenderMode, 0, mVertexCount);
 	glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, mGLBufferIDs[1]);
-	glDrawElements(mRenderMode, mIndexCount, GL_UNSIGNED_INT, 0);
+	try {
+		glDrawElements(mRenderMode, mIndexCount, GL_UNSIGNED_INT, 0);
+	}
+	catch (...)
+	{
+		LOG_WARNING("exception occured by draw element");
+	}
 	glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, 0);//*/
 	if(DRGrafikError("base geometrie render")) 
 		LOG_ERROR("object could't rendered", DR_ERROR);

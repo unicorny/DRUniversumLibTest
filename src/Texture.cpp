@@ -40,19 +40,27 @@ DRReturn Texture::_uploadToGPU()
 	DRGrafikError("[view::Texture::_uploadToGPU] clear opengl error");
 	GLint internalFormat = 0;
 	GLenum format = mTextureModel->getFormat();
-	if (format == GL_RGBA) internalFormat = 4;
-	else if (format == GL_RGB) internalFormat = 3;
+	u8 pixelSize = 0;
+	if (format == GL_RGBA) {
+		internalFormat = GL_RGBA8;
+		pixelSize = 4;
+	}
+	else if (format == GL_RGB) {
+		internalFormat = GL_RGB8;
+		pixelSize = 3;
+	}
 	else LOG_ERROR("unknown format", DR_ERROR);
 	DRVector2i size = mTextureModel->getSize();
 	if (mTextureID == 0) createTextureMemory(size, format, internalFormat);
 	else bind();
 	if (mTextureModel->hasImageData() && mTextureModel->getPixels()) {
 		u8* pixels = mTextureModel->getPixels();
-		if(!mPboID)
+		if (!mPboID)
 			glGenBuffers(1, &mPboID);
 		glBindBuffer(GL_PIXEL_UNPACK_BUFFER, mPboID);
-		glBufferData(GL_PIXEL_UNPACK_BUFFER, size.x*size.y*internalFormat,
+		glBufferData(GL_PIXEL_UNPACK_BUFFER, size.x*size.y*pixelSize,
 			pixels, GL_STREAM_DRAW);
+		DRGrafikError("after Buffer data");
 		
 		glTexSubImage2D(GL_TEXTURE_2D, 0,
 			0, 0, size.x, size.y,
@@ -71,13 +79,8 @@ DRReturn Texture::createTextureMemory(DRVector2i size, GLenum format, GLint inte
 	bind();
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
-	
+	DRGrafikError("after setting parameters");
 	glTexImage2D(GL_TEXTURE_2D, 0, internalFormat, size.x, size.y, 0,
 		format, GL_UNSIGNED_BYTE, 0);
 	return DRGrafikError("Error by creating texture memory");
-}
-
-void Texture::saveIntoFile(const char* filename)
-{
-
 }

@@ -57,9 +57,12 @@ void UniformSet::updateUniforms(model::ShaderProgram* program)
 	}
 	while (!mWaitingUniformEntrys.empty()) {
 		NotYetReadyUniformEntry e = mWaitingUniformEntrys.front();
+		if (e.shader->checkLoadingState() != LOADING_STATE_FULLY_LOADED)
+			return;
 		mWaitingUniformEntrys.pop();
 		ShaderProgram* sp = e.shader;
 		addUniformMapping(e.name.data(), (void*)glGetUniformLocation(sp->getProgram(), e.name.data()), sp->getID());
+		
 	}
 	for(std::map<HASH, UniformEntry*>::iterator it = mUniformEntrys.begin(); it != mUniformEntrys.end(); it++) {
 		UniformEntry* entry = it->second;

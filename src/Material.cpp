@@ -12,9 +12,9 @@ void Material::bind()
 			ShaderProgram* shader = static_cast<ShaderProgram*>(&(*mShaderProgram));
 			UniformSet* uniforms = static_cast<UniformSet*>(mUniformsSet);
 			uniforms->updateUniforms(shader);
-		}
-		
+		}	
 	}
+	DRGrafikError("[Material::bind]");
 }
 
 void TextureMaterial::bind()
@@ -29,6 +29,7 @@ void TextureMaterial::bind()
 			uniforms->updateUniforms(shader);
 		}
 	}
+	DRGrafikError("[TextureMaterial::bind]");
 }
 void MultiTextureMaterial::bind()
 {
@@ -44,4 +45,5 @@ void MultiTextureMaterial::bind()
 			uniforms->updateUniforms(shader);
 		}
 	}
+	DRGrafikError("[MultiTextureMaterial::bind]");
 }

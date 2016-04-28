@@ -3,6 +3,7 @@
 
 #include "UniversumLib.h"
 #include "MicroSpacecraft.h"
+#include "lib/MultithreadContainer.h"
 #include "ft2build.h"
 #include FT_FREETYPE_H
 
@@ -32,8 +33,8 @@ public:
 	void loadGlyph(FT_ULong c);
 	//__inline__ void bind() {glBindTexture(GL_TEXTURE_2D, mTextureId);}
 	__inline__ UniLib::view::TexturePtr getTexture() { return mTexture; }
-	__inline__ void setStaticGeometrie() { gWorld->addStaticGeometrie(mGeometrie); mGeometrieReady = false; }
-	__inline__ bool isGeometrieReady() { return mGeometrieReady; }
+	void setStaticGeometrie();
+	bool isGeometrieReady();
 protected:
 	__inline__ FT_UInt getGlyphIndex(FT_ULong charcode) { return FT_Get_Char_Index(mFontFace, charcode); }
 
@@ -68,6 +69,7 @@ protected:
 	std::list<Bezier> mBezierKurves;
 	UniLib::view::VisibleNode* mGeometrie;
 	UniLib::model::geometrie::BaseGeometrie* mBaseGeo;
+	UniLib::lib::MultithreadContainer mGeoReadyMutex;
 };
 
 class FontManager

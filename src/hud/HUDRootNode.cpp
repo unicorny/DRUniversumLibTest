@@ -22,7 +22,8 @@ namespace HUD {
 		mMaterial->bind();
 		if (mParent->getTextFont()->isGeometrieReady()) mParent->getTextFont()->setStaticGeometrie();
 		//mParent->getTextFont()->bind();
-		controller::BaseGeometrieManager::getInstance()->getGeometrie(controller::BASE_GEOMETRIE_PLANE)->render();
+		UniLib::view::Geometrie*geo = controller::BaseGeometrieManager::getInstance()->getGeometrie(controller::BASE_GEOMETRIE_PLANE);
+		if (geo->isReady()) geo->render();
 
 		return DR_OK;
 	}
@@ -43,7 +44,7 @@ namespace HUD {
 	// **************************************************************
 
 	RootNode::RootNode()
-		: Thread("HUD"), ContainerNode("ROOT", NULL), mExitCalled(false), mRenderCall(NULL), mFont(NULL)
+		: Thread("HUD"), ContainerNode("ROOT", NULL), mExitCalled(false), mRenderCall(NULL), mFontManager(NULL), mFont(NULL)
 	{
 
 	}
@@ -65,8 +66,6 @@ namespace HUD {
 		mFPS_Updates = fps_update;
 		mFontManager = new FontManager;
 
-		
-
 		condSignal();
 		return DR_OK;
 	}
@@ -82,6 +81,13 @@ namespace HUD {
 		Uint32 startTicks = SDL_GetTicks();
 		Uint32 lastDiff = 0;
 		Uint32 maxMsPerFrame = (Uint32)floor(1000.0f / (float)mFPS_Updates);
+
+		view::TextureMaterial* tm = new TextureMaterial;
+		view::MaterialPtr m = view::MaterialPtr(tm);
+		controller::ShaderManager* shaderManager = controller::ShaderManager::getInstance();
+		model::ShaderProgramPtr sh = shaderManager->getShaderProgram("renderToTexture.vert", "renderToTexture.frag");
+		tm->setShaderProgram(sh);
+
 		while (!mExitCalled) {
 			float timeSinceLastFrame = (float)lastDiff / 1000.0f;
 			threadLock();
@@ -95,13 +101,10 @@ namespace HUD {
 				mFont->loadGlyph(L'G');
 			}
 
+
 			// create render call if first rendering has finished!
 			if (!mRenderCall) {
 				if (mRendererCasted->isTaskFinished()) {
-					view::TextureMaterial* tm = new TextureMaterial;
-					view::MaterialPtr m = view::MaterialPtr(tm);
-					controller::ShaderManager* shaderManager = controller::ShaderManager::getInstance();
-					tm->setShaderProgram(shaderManager->getShaderProgram("renderToTexture.vert", "renderToTexture.frag"));
 					//tm->setTexture(mRendererCasted->getTexture());
 					tm->setTexture(mFont->getTexture());
 					mRenderCall = new RootNodeRenderCall(this, m);

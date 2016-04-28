@@ -21,8 +21,7 @@ public:
 	virtual void downloadFromGPU();
 	virtual void bind();
 	virtual GLuint getTextureId() { return mTextureID; }
-	// CPU Task
-	virtual void saveIntoFile(const char* filename);
+	
 protected:
 	DRReturn _uploadToGPU();
 	DRReturn createTextureMemory(DRVector2i size, GLenum format, GLint internalFormat);
@@ -41,6 +40,7 @@ public:
 	virtual ~TexturePushToGPUTask() {};
 
 	virtual DRReturn run() { return mCaller->_uploadToGPU(); }
+	virtual const char* getResourceType() const { return "TexturePushToGPUTask"; };
 protected:
 	Texture* mCaller;
 };

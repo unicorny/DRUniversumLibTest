@@ -12,7 +12,7 @@
 using namespace UniLib;
 
 DRFont::DRFont(FontManager* fm, const char* filename)
-	: mFontFace(NULL), mGeometrieReady(false), mGeometrie(NULL)
+	: mFontFace(NULL), mGeometrieReady(false), mGeometrie(NULL), mBaseGeo(NULL)
 {
 	/* 
 	loading from memory:
@@ -192,11 +192,13 @@ void DRFont::loadGlyph(FT_ULong c)
 			SDL_GetTicks() - startTicks);
 		//printBeziers();
 		mTexture = controller::TextureManager::getInstance()->getEmptyTexture(textureSize, GL_RGBA);
-		mTexture->loadFromMemory(pixels);
+//		mTexture->loadFromMemory(pixels);
+		
 		/*glTexImage2D(GL_TEXTURE_2D, 0, 4, textureSize.x, textureSize.y, 0,
 			format, GL_UNSIGNED_BYTE, pixels);*/
-		mTexture->saveIntoFile("testFont.jpg");
-		DR_SAVE_DELETE_ARRAY(pixels);
+		//mTexture->saveIntoFile("testFont.jpg");
+		mTexture->saveIntoFile("testFont.jpg", pixels);
+		
 		}
 	for (std::list<Bezier>::iterator it = mBezierKurves.begin(); it != mBezierKurves.end(); it++) {
 		DR_SAVE_DELETE_ARRAY(it->points);
@@ -208,8 +210,27 @@ void DRFont::loadGlyph(FT_ULong c)
 		FT_LOAD_NO_BITMAP);*/
 	
 	mBaseGeo->copyToFastAccess();
+	mGeoReadyMutex.lock();
 	mGeometrieReady = true;
+	mGeoReadyMutex.unlock();
 	//gWorld->addStaticGeometrie(mGeometrie);
+}
+
+void DRFont::setStaticGeometrie() 
+{
+	mGeoReadyMutex.lock(); 
+	gWorld->addStaticGeometrie(mGeometrie); 
+	LOG_INFO("add font geo to world");
+	mGeometrieReady = false; 
+	mGeoReadyMutex.unlock(); 
+}
+bool DRFont::isGeometrieReady() 
+{ 
+	bool b = false; 
+	mGeoReadyMutex.lock();  
+	b = mGeometrieReady; 
+	mGeoReadyMutex.unlock(); 
+	return b; 
 }
 
 void DRFont::addVertex(DRVector2 vertex)
