@@ -30,6 +30,8 @@ namespace HUD {
 		// will be called if render call need to much time
 		// \param percent used up percent time of render main loop
 		virtual void youNeedToLong(float percent);
+
+		virtual const char* getName() const { return "HUD Root Node renderer"; }
 	protected:
 		UniLib::view::MaterialPtr mMaterial;
 		RootNode* mParent;

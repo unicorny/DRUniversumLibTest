@@ -45,6 +45,8 @@ public:
 	// will be called if render call need to much time
 	// \param percent used up percent time of render main loop
 	virtual void youNeedToLong(float percent);
+
+	virtual const char* getName() const { return "World main Render"; }
 protected:
 	WorldPreRender* mPreRenderer;
 	UniformSet* mWorldUniforms;
@@ -67,6 +69,8 @@ public:
 	virtual void youNeedToLong(float percent);
 
 	__inline__ void addGeometrieToUpload(UniLib::view::GeometriePtr geo) {mWaitingForUpload.push(geo);}
+
+	virtual const char* getName() const { return "World pre Render"; }
 
 protected:
 	World* mParent;

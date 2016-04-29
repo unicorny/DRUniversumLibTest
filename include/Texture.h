@@ -41,7 +41,14 @@ public:
 
 	virtual DRReturn run() { return mCaller->_uploadToGPU(); }
 	virtual const char* getResourceType() const { return "TexturePushToGPUTask"; };
+#ifdef _UNI_LIB_DEBUG
+	__inline__ void setName(const char* name) { mTextureFileName = name; }
+	virtual const char* getName() const { return mTextureFileName.data(); }
+#endif
 protected:
 	Texture* mCaller;
+#ifdef _UNI_LIB_DEBUG
+	std::string mTextureFileName;
+#endif
 };
 #endif //__DR_MICRO_SPACECRAFT_TEXTURE__H

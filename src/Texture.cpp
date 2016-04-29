@@ -1,7 +1,7 @@
 #include "Texture.h"
 #include "model/Texture.h"
 #include "MicroSpacecraft.h"
-
+#include <sstream>
 using namespace UniLib;
 
 Texture::Texture(DRVector2i size, GLenum format)
@@ -24,7 +24,22 @@ Texture::~Texture()
 
 void Texture::uploadToGPU()
 {
-	controller::TaskPtr task(new TexturePushToGPUTask(this));
+	TexturePushToGPUTask* t = new TexturePushToGPUTask(this);
+#ifdef _UNI_LIB_DEBUG 
+	if (strlen(getFilename().data()) > 1) {
+		t->setName(getFilename().data());
+	}
+	else {
+		std::stringstream ss;
+		model::Texture* model = getTextureModel();
+		DRVector2i size = model->getSize();
+		GLenum format = model->getFormat();
+
+		ss << size.x << "x" << size.y << " " << format << std::endl;
+		t->setName(ss.str().data());
+	}
+#endif
+	controller::TaskPtr task(t);
 	task->scheduleTask(task);
 }
 void Texture::downloadFromGPU()
