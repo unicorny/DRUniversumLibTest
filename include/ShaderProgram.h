@@ -30,7 +30,6 @@ public:
 	ShaderProgram(HASH id);
 	virtual ~ShaderProgram();
 
-	virtual DRReturn init(UniLib::model::ShaderPtr vertexShader, UniLib::model::ShaderPtr fragmentShader);
 	virtual void bind() const;
 	virtual void unbind();
 

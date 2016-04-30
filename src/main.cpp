@@ -21,6 +21,8 @@
 #include "view/TextureMaterial.h"
 #include "lib/Timer.h"
 #include "hud/HUDRootNode.h"
+
+#include "debug/CPUSchedulerTasksLog.h"
 //#include "FrameBuffer.h"
 
 #include "generator/RenderToTexture.h"
@@ -255,6 +257,9 @@ DRReturn load()
 
 	// render to texture test
 	generator::RenderToTexture* testTask = new generator::RenderToTexture(texture);
+#ifdef _UNI_LIB_DEBUG
+	testTask->setName("renderTest");
+#endif
 	Material* renderMaterial = new Material;
 	renderMaterial->setShaderProgram(shaderManager->getShaderProgram("frameBuffer.vert", "speedTest.frag"));
 	testTask->setMaterial(renderMaterial);
@@ -263,7 +268,7 @@ DRReturn load()
 
 	// first block
 	model::block::BlockPtr block = model::block::BlockPtr(new model::block::Block("_MATERIAL_NAME_STEEL"));
-	EngineLog.writeToLog("creating block: %s", block->getBlockType()->asString().data());
+	//EngineLog.writeToLog("creating block: %s", block->getBlockType()->asString().data());
 	std::queue<u8> path;
 	path.push(4);
 	gWorld->getSpaceCraftNode()->addBlock(block, path, DRVector3i(4, 5, 4));

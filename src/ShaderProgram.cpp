@@ -17,14 +17,14 @@ Shader::~Shader()
 DRReturn Shader::init(const char* shaderFile, UniLib::model::ShaderType shaderType)
 {
 	const char *shaderStrings[1];
-
+	mType = shaderType;
 	GLint compiled;
 	char str[4096]; // For error messages from the GLSL compiler and linker
 	memset(str, 0, 4096);
 
 	// Create the shader.
 	mShaderID = glCreateShader(getShaderType(shaderType));
-	UniLib::EngineLog.writeToLog("shaderID: %d", mShaderID);
+	//UniLib::EngineLog.writeToLog("shaderID: %d", mShaderID);
 
 	unsigned char* shaderAssembly = readShaderFile( shaderFile );
 	if(!shaderAssembly)
@@ -57,6 +57,7 @@ DRReturn Shader::init(unsigned char* shaderFileInMemory, UniLib::model::ShaderTy
 {
 	Uint32 startTicks = SDL_GetTicks();
 	const char *shaderStrings[1];
+	mType = shaderType;
 
 	GLint compiled;
 	char str[4096]; // For error messages from the GLSL compiler and linker
@@ -82,7 +83,7 @@ DRReturn Shader::init(unsigned char* shaderFileInMemory, UniLib::model::ShaderTy
 			UniLib::EngineLog.writeToLog("<font color='red'>Fehler:</font>shader compile error: %s", str);
 	}
 	if (DRGrafikError("Shader::init create Shader")) LOG_WARNING("Fehler bei shader init");
-	UniLib::EngineLog.writeToLog("%d ms parsing shader", SDL_GetTicks()-startTicks);
+	//UniLib::EngineLog.writeToLog("%d ms parsing shader", SDL_GetTicks()-startTicks);
 	return DR_OK;
 }
 
@@ -109,56 +110,16 @@ ShaderProgram::ShaderProgram(HASH id/* = 0*/)
 
 ShaderProgram::~ShaderProgram()
 {
+	for (std::list<UniLib::model::Shader*>::iterator it = mLoadedShader.begin(); it != mLoadedShader.end(); it++) {
+		DR_SAVE_DELETE(*it);
+	}
+	mLoadedShader.clear();
 	if(mProgram)
 	{
 		glDeleteProgram(mProgram);
 		mProgram = 0;
 	}
-}
-DRReturn ShaderProgram::init(UniLib::model::ShaderPtr vertexShader, UniLib::model::ShaderPtr fragmentShader)
-{
-	GLint shadersLinked;
-	char str[8192]; // For error messages from the GLSL compiler and linker
-	memset(str, 0, 8192);
 
-	if(!vertexShader || !fragmentShader) LOG_ERROR("Zero-Pointer", DR_ZERO_POINTER);
-
-	mVertexShader = vertexShader;
-	mFragmentShader = fragmentShader;
-
-	UniLib::model::Shader* vs = vertexShader;
-	UniLib::model::Shader* fs = fragmentShader;
-	GLuint vertexShaderId = static_cast<Shader*>(vs)->getShader();
-	GLuint fragmentShaderId = static_cast<Shader*>(fs)->getShader();
-
-	// Create a program object and attach the two compiled shaders.
-	mProgram = glCreateProgram();
-	mId = mProgram;
-	glAttachShader( mProgram, vertexShaderId );
-	glAttachShader( mProgram, fragmentShaderId );
-
-	// Link the program object and print out the info log.
-	try {
-		glLinkProgram( mProgram );
-	} catch(int e) {
-		UniLib::EngineLog.writeToLog("Exception trowed from glLinkProgramm, maybe shader isn't compatible with current hardware?, exception: %d", e);
-		LOG_ERROR("Shader Compiling Error", DR_ERROR);
-	}
-	glGetProgramiv( mProgram, GL_LINK_STATUS, &shadersLinked );
-	if( shadersLinked == GL_FALSE )
-	{
-		int length = 0;
-		glGetProgramInfoLog( mProgram, sizeof(str), &length, str );
-		//printError("Program object linking error", str);
-		if(length > 1023)
-			UniLib::EngineLog.writeToLog(DRString(str));
-		else
-			UniLib::EngineLog.writeToLog("<font color='red'>Fehler:</font>Program object linking error:\n%s", str);
-	}
-
-	if(DRGrafikError("ShaderProgram::init create programm")) LOG_WARNING("Fehler bei shader init");
-	setLoadingState(UniLib::LOADING_STATE_FULLY_LOADED);
-	return DR_OK;
 }
 
 void ShaderProgram::parseShaderData()
@@ -166,47 +127,63 @@ void ShaderProgram::parseShaderData()
 	char str[8192]; // For error messages from the GLSL compiler and linker
 	memset(str, 0, 8192);
 	// Create a program object and attach the two compiled shaders.
-	mProgram = glCreateProgram();
+	if(!mProgram)
+		mProgram = glCreateProgram();
 	//mId = mProgram;
 	
 	lock(); 
-	for (std::list<ShaderData>::iterator it = mShaderToLoad.begin(); it != mShaderToLoad.end(); it++) {
-		HASH id = DRMakeFilenameHash(it->filename.data());
+	if (mShaderToLoad.size() > 0) {
+		ShaderData sd = mShaderToLoad.front();
+		mShaderToLoad.pop_front();
+		HASH id = DRMakeFilenameHash(sd.filename.data());
 		Shader* sh = new Shader(id);
-		UniLib::EngineLog.writeToLog("parsing shader: %s", it->filename.data());
-		if (sh->init(it->shaderFileInMemory, it->type)) {
-			UniLib::EngineLog.writeToLog("error by loading shader: %s", it->filename.data());
+		mLoadedShader.push_back(sh);
+		unlock();
+		//UniLib::EngineLog.writeToLog("parsing shader: %s", it->filename.data());
+		if (sh->init(sd.shaderFileInMemory, sd.type)) {
+			UniLib::EngineLog.writeToLog("error by loading shader: %s", sd.filename.data());
 		}
 		else {
 			glAttachShader(mProgram, sh->getShader());
 		}
+		lock();
 	}
-	mShaderToLoad.clear();
+	if (mShaderToLoad.size() > 0) {
+#ifdef _UNI_LIB_DEBUG
+		mShaderCompileTask->setName(mShaderToLoad.front().filename.data());
+#endif
+		mShaderCompileTask->scheduleTask(mShaderCompileTask);
+	}
+	else {
+		unlock();
+		// Link the program object and print out the info log.
+		try {
+			glLinkProgram(mProgram);
+		}
+		catch (int e) {
+			UniLib::EngineLog.writeToLog("Exception trowed from glLinkProgramm, maybe shader isn't compatible with current hardware?, exception: %d", e);
+			LOG_ERROR_VOID("Shader Compiling Error");
+		}
+		GLint shadersLinked;
+		glGetProgramiv(mProgram, GL_LINK_STATUS, &shadersLinked);
+		if (shadersLinked == GL_FALSE)
+		{
+			int length = 0;
+			glGetProgramInfoLog(mProgram, sizeof(str), &length, str);
+			//printError("Program object linking error", str);
+			if (length > 1023)
+				UniLib::EngineLog.writeToLog(DRString(str));
+			else
+				UniLib::EngineLog.writeToLog("<font color='red'>Fehler:</font>Program object linking error:\n%s", str);
+		}
+		if (DRGrafikError("ShaderProgram::init create programm")) LOG_WARNING("Fehler bei shader init");
+		setLoadingState(UniLib::LOADING_STATE_FULLY_LOADED);
+		lock();
+	}
 	unlock();
-	// Link the program object and print out the info log.
-	try {
-		glLinkProgram(mProgram);
-	}
-	catch (int e) {
-		UniLib::EngineLog.writeToLog("Exception trowed from glLinkProgramm, maybe shader isn't compatible with current hardware?, exception: %d", e);
-		LOG_ERROR_VOID("Shader Compiling Error");
-	}
-	GLint shadersLinked;
-	glGetProgramiv(mProgram, GL_LINK_STATUS, &shadersLinked);
-	if (shadersLinked == GL_FALSE)
-	{
-		int length = 0;
-		glGetProgramInfoLog(mProgram, sizeof(str), &length, str);
-		//printError("Program object linking error", str);
-		if (length > 1023)
-			UniLib::EngineLog.writeToLog(DRString(str));
-		else
-			UniLib::EngineLog.writeToLog("<font color='red'>Fehler:</font>Program object linking error:\n%s", str);
-	}
-
-	if (DRGrafikError("ShaderProgram::init create programm")) LOG_WARNING("Fehler bei shader init");
-	LOG_INFO("Shader loaded");
-	setLoadingState(UniLib::LOADING_STATE_FULLY_LOADED);
+	
+	//LOG_INFO("Shader loaded");
+	
 }
 
 void ShaderProgram::bind() const

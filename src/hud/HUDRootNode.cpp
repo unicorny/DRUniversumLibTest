@@ -46,7 +46,9 @@ namespace HUD {
 	RootNode::RootNode()
 		: Thread("HUD"), ContainerNode("ROOT", NULL), mExitCalled(false), mRenderCall(NULL), mFontManager(NULL), mFont(NULL)
 	{
-
+#ifdef _UNI_LIB_DEBUG
+		mRendererCasted->setName("HUD::RootNode Renderer");
+#endif
 	}
 
 	RootNode::~RootNode()
@@ -65,6 +67,7 @@ namespace HUD {
 		mScreenResolution = screenResolution;
 		mFPS_Updates = fps_update;
 		mFontManager = new FontManager;
+
 
 		condSignal();
 		return DR_OK;
