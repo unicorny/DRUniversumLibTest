@@ -1,8 +1,20 @@
 #include "Texture.h"
 #include "model/Texture.h"
 #include "MicroSpacecraft.h"
+#include "controller/Command.h"
 #include <sstream>
 using namespace UniLib;
+
+
+// *********************************************************************************
+DRReturn TexturePushToGPUTask::run() 
+{
+	DRReturn result = mCaller->_uploadToGPU(); 
+	if (mFinishCommand) mFinishCommand->taskFinished(this); 
+	return result;
+}
+// **********************************************************************************
+
 
 Texture::Texture(DRVector2i size, GLenum format)
 	: view::Texture(size, format), mTextureID(0), mPboID(0)
@@ -54,6 +66,7 @@ DRReturn Texture::_uploadToGPU()
 {
 	DRGrafikError("[view::Texture::_uploadToGPU] clear opengl error");
 	GLint internalFormat = 0;
+	mTextureModel->lock();
 	GLenum format = mTextureModel->getFormat();
 	u8 pixelSize = 0;
 	if (format == GL_RGBA) {
@@ -84,6 +97,7 @@ DRReturn Texture::_uploadToGPU()
 		glBindBuffer(GL_PIXEL_UNPACK_BUFFER, 0); 
 	}
 	setLoadingState(LOADING_STATE_FULLY_LOADED);
+	mTextureModel->unlock();
 	return DRGrafikError("[view::Texture::_uploadToGPU] Error by copying pixels to OpenGL");
 }
 

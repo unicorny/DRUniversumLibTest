@@ -39,12 +39,13 @@ public:
 	TexturePushToGPUTask(Texture* caller) : GPUTask(false), mCaller(caller) {};
 	virtual ~TexturePushToGPUTask() {};
 
-	virtual DRReturn run() { return mCaller->_uploadToGPU(); }
+	virtual DRReturn run();
 	virtual const char* getResourceType() const { return "TexturePushToGPUTask"; };
 #ifdef _UNI_LIB_DEBUG
 	__inline__ void setName(const char* name) { mTextureFileName = name; }
 	virtual const char* getName() const { return mTextureFileName.data(); }
 #endif
+	__inline__ Texture* getCaller() { return mCaller; }
 protected:
 	Texture* mCaller;
 #ifdef _UNI_LIB_DEBUG

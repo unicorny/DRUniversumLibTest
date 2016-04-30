@@ -2,8 +2,10 @@
 #include "Texture.h"
 
 #include "view/VisibleNode.h"
+#include "view/Texture.h"
 #include "controller/ShaderManager.h"
 #include "controller/TextureManager.h"
+#include "controller/Command.h"
 #include "Material.h"
 #include "Geometrie.h"
 #include "model/geometrie/BaseGeometrie.h"
@@ -48,6 +50,15 @@ DRFont::~DRFont()
 	
 }
 
+class FontTextureSetFinish : public controller::Command {
+public:
+	virtual DRReturn taskFinished(controller::Task* task) {
+		view::TextureTask* t = static_cast<view::TextureTask*>(task);
+		t->getViewTexture()->saveIntoFile("testFont.jpg");
+		delete this;
+		return DR_OK;
+	}
+};
 
 void DRFont::loadGlyph(FT_ULong c)
 {
@@ -101,6 +112,7 @@ void DRFont::loadGlyph(FT_ULong c)
 
 		DRVector2i textureSize(pow(2, ceil(log2(maxX))), pow(2, ceil(log2(maxY))));
 		GLenum format = GL_RGBA;
+		mTexture = controller::TextureManager::getInstance()->getEmptyTexture(textureSize, GL_RGBA);
 		u8* pixels = new u8[textureSize.x*textureSize.y * 4];
 		memset(pixels, 0, sizeof(u8)*textureSize.x*textureSize.y * 4);
 		
@@ -191,12 +203,12 @@ void DRFont::loadGlyph(FT_ULong c)
 		printf("[DRFont::loadGlyph] plot all curves from on glyph in %d ms\n",
 			SDL_GetTicks() - startTicks);
 		//printBeziers();
-		mTexture = controller::TextureManager::getInstance()->getEmptyTexture(textureSize, GL_RGBA);
-//		mTexture->loadFromMemory(pixels);
+		
+		//mTexture->loadFromMemory(pixels, new FontTextureSetFinish);
 		
 		/*glTexImage2D(GL_TEXTURE_2D, 0, 4, textureSize.x, textureSize.y, 0,
 			format, GL_UNSIGNED_BYTE, pixels);*/
-		//mTexture->saveIntoFile("testFont.jpg");
+		
 		mTexture->saveIntoFile("testFont.jpg", pixels);
 		
 		}
