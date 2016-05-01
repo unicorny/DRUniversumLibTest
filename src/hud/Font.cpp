@@ -14,7 +14,7 @@
 using namespace UniLib;
 
 DRFont::DRFont(FontManager* fm, const char* filename)
-	: mFontFace(NULL), mGeometrieReady(false), mGeometrie(NULL), mBaseGeo(NULL)
+	: mFontFace(NULL), mGeometrieReady(false), mBezierKurves(NULL), mGeometrie(NULL), mBaseGeo(NULL), mFinalBezierCurves(NULL)
 {
 	/* 
 	loading from memory:
@@ -45,6 +45,8 @@ DRFont::DRFont(FontManager* fm, const char* filename)
 
 DRFont::~DRFont()
 {
+	DR_SAVE_DELETE_ARRAY(mBezierKurves);
+	DR_SAVE_DELETE_ARRAY(mFinalBezierCurves);
 	FT_Done_Face(mFontFace);
 	//DR_SAVE_DELETE(mGeometrie);
 	
@@ -62,6 +64,7 @@ public:
 
 void DRFont::loadGlyph(FT_ULong c)
 {
+
 	if (!mGeometrie) {
 		mGeometrie = new view::VisibleNode;
 		view::MaterialPtr materialPtr = view::MaterialPtr(new Material);
@@ -79,16 +82,16 @@ void DRFont::loadGlyph(FT_ULong c)
 		pos->setPosition(DRVector3(-200.0f, -400.0f, -800.0f));
 	}
 	FT_UInt glyph_index = getGlyphIndex(c);
-	/*FT_Error error = FT_Set_Pixel_Sizes(
+	FT_Error error = FT_Set_Pixel_Sizes(
 		mFontFace,   // handle to face object 
 		0,      // pixel_width           
 		16);   // pixel_height          */
-	FT_Error error = FT_Set_Char_Size(
-			mFontFace,    /* handle to face object           */
-			0,       /* char_width in 1/64th of points  */
-			16 * 64,   /* char_height in 1/64th of points */
-			600,     /* horizontal device resolution    */
-			800);   /* vertical device resolution      */
+	/*FT_Error error = FT_Set_Char_Size(
+			mFontFace,    // handle to face object           
+			0,       // char_width in 1/64th of points  
+			16 * 64,   // char_height in 1/64th of points 
+			600,     // horizontal device resolution    
+			800);   //vertical device resolution      */
 	if (error) {
 		EngineLog.writeToLog("error by setting pixel size to 16px: %d 0x%x", error, error);
 	}
@@ -96,36 +99,60 @@ void DRFont::loadGlyph(FT_ULong c)
 	if (error) {
 		EngineLog.writeToLog("error by loading glyph: %d %x", error, error);
 	}
+	printf("Font Infos:\n");
+	printf("face count: %d\n", mFontFace->num_faces);
+	if (mFontFace->face_flags & FT_FACE_FLAG_SCALABLE == FT_FACE_FLAG_SCALABLE) {
+		printf("face is scalable!\n");
+	}
+	printf("face flags: %d\n", mFontFace->face_flags);
+	printf("glyph count: %d\n", mFontFace->num_glyphs);
+	printf("font familiy name: %s\n", mFontFace->family_name);
+	printf("font style name: %s\n", mFontFace->style_name);
+	printf("charmap count: %d\n", mFontFace->num_charmaps);
+	FT_BBox boundingBox = mFontFace->bbox;
+	printf("bounding box: xMin: %d, xMax: %d, yMin: %d, yMax: %d\n",
+		boundingBox.xMin, boundingBox.xMax, boundingBox.yMin, boundingBox.yMax);
+	printf("units per EM: %d\n", mFontFace->units_per_EM);
+	printf("ascender: %d, descender: %d, height: %d\n", mFontFace->ascender, mFontFace->descender, mFontFace->height);
+	printf("underline_position: %d\n", mFontFace->underline_position);
 	FT_GlyphSlot  slot = mFontFace->glyph;  /* a small shortcut */
+
+	printf("linearHoriAdvance: %d\n", slot->linearHoriAdvance);
+	printf("linearVertAdvance: %d\n", slot->linearVertAdvance);
 	
 	printf("contur for %c\n", c);
+	
 	if (slot->format == FT_GLYPH_FORMAT_OUTLINE) {
 		short conturCount = slot->outline.n_contours;
 		short pointCount = slot->outline.n_points;
 		// get max x and y value
 		short maxX = 0, maxY = 0;
+		short minX = 1000, minY = 1000;
 		for (short i = 0; i < pointCount; i++) {
 			FT_Vector p = slot->outline.points[i];
-			if (p.x > maxX) maxX = p.x;
-			if (p.y > maxY) maxY = p.y;
+			maxX = max(maxX, p.x);
+			maxY = max(maxY, p.y);
+			minX = min(minX, p.x);
+			minY = min(minY, p.y);
 		}
 
-		DRVector2i textureSize(pow(2, ceil(log2(maxX))), pow(2, ceil(log2(maxY))));
+		DRVector2i textureSize(pow(2, ceil(log2(boundingBox.xMax-boundingBox.xMin))), pow(2, ceil(log2(boundingBox.yMax-boundingBox.yMin))));
 		GLenum format = GL_RGBA;
 		mTexture = controller::TextureManager::getInstance()->getEmptyTexture(textureSize, GL_RGBA);
 		u8* pixels = new u8[textureSize.x*textureSize.y * 4];
 		memset(pixels, 0, sizeof(u8)*textureSize.x*textureSize.y * 4);
-		
+		mBezierKurves = new std::list<Bezier>[conturCount];
+		mFinalBezierCurves = new BezierCurves[conturCount];
 		for (short contur = 0; contur < conturCount; contur++) {
 			short start = 0;
+			while (!mTempPoints.empty()) mTempPoints.pop();
 			FT_Vector firstPoint;
 			if (contur > 0) start = slot->outline.contours[contur - 1] + 1;
 			printf("contur: %d\n", contur);
-			for (short i = start; i <= slot->outline.contours[contur]; i++) {
-				
+			for (short i = start; i <= slot->outline.contours[contur]; i++) 
+			{	
 				FT_Vector p = slot->outline.points[i];
 				if (i == start) firstPoint = p;
-				if (p.x < 0 || p.y < 0) continue;
 				char f = slot->outline.tags[i];
 				std::string pointType;
 				switch (f) {
@@ -139,7 +166,7 @@ void DRFont::loadGlyph(FT_ULong c)
 				pointType = "Off Curve";
 				int index = p.x * 4 + p.y*textureSize.x * 4;
 				if (f & 1 == 1) {
-					addPointToBezier(DRVector2i(p.x, p.y), true);
+					addPointToBezier(DRVector2i(p.x - boundingBox.xMin, p.y - boundingBox.yMin), contur, true);
 					controlPoint = false;
 					pointType = "On Curve";
 					
@@ -149,7 +176,7 @@ void DRFont::loadGlyph(FT_ULong c)
 					pixels[index + 3] = 255;*/
 				}
 				else {
-					addPointToBezier(DRVector2i(p.x, p.y), false);
+					addPointToBezier(DRVector2i(p.x - boundingBox.xMin, p.y-boundingBox.yMin), contur, false);
 					/*pixels[index] = 255;
 					pixels[index + 1] = 1;
 					pixels[index + 2] = 1;
@@ -167,55 +194,74 @@ void DRFont::loadGlyph(FT_ULong c)
 				if (f & 4 == 4) {
 					// bits 5-7 contain drop out mode
 				}
-			//	printf("point: %d (%d,%d), point type: %s\n",
-				//	i, p.x, p.y, pointType.data());
+				printf("point: %d (%d,%d), point type: %s\n",
+					i, p.x, p.y, pointType.data());
 				
 			}
 
-			addPointToBezier(DRVector2i(firstPoint.x, firstPoint.y), true);
+			addPointToBezier(DRVector2i(firstPoint.x-boundingBox.xMin, firstPoint.y-boundingBox.yMin), contur, true);
 		}
 		// draw bezier curves
 		Uint32 startTicks = SDL_GetTicks();
 		
-		bool reduktionCalled = true;
-		while (reduktionCalled) {
-			reduktionCalled = false;
-			for (std::list<Bezier>::iterator it = mBezierKurves.begin(); it != mBezierKurves.end(); it++) {
-				if (it->pointCount > 3) {
-					reduktionCalled = true;
-					Bezier* bez = it->gradreduktion();
-					if (bez) {
-						it = mBezierKurves.insert(++it, *bez);
-						DR_SAVE_DELETE(bez);
-						it++;
+		for (int iContur = 0; iContur < conturCount; iContur++) {
+			bool reduktionCalled = true;
+			while (reduktionCalled) {
+				reduktionCalled = false;
+				for (std::list<Bezier>::iterator it = mBezierKurves[iContur].begin(); it != mBezierKurves[iContur].end(); it++) {
+					if (it->pointCount > 3) {
+						reduktionCalled = true;
+						Bezier* bez = it->gradreduktion();
+						if (bez) {
+							it = mBezierKurves[iContur].insert(++it, *bez);
+							DR_SAVE_DELETE(bez);
+							it++;
+						}
 					}
 				}
 			}
-		}
-		printf("bezier count: %d\n", mBezierKurves.size());
-		for (std::list<Bezier>::iterator it = mBezierKurves.begin(); it != mBezierKurves.end(); it++) {
-			printf("point count: %d\n", it->pointCount);
-			it->plot(pixels, textureSize);
-			for (int i = 0; i < it->pointCount; i++) {
-				addVertex(it->points[i]);
+			printf("bezier count: %d\n", mBezierKurves[iContur].size());
+			//printBeziers(iContur);
+
+			u16 countBezierPoints = 1;	
+			for (std::list<Bezier>::iterator it = mBezierKurves[iContur].begin(); it != mBezierKurves[iContur].end(); it++) {
+				countBezierPoints += it->pointCount - 1;
 			}
+			
+			mFinalBezierCurves[iContur].init(mBezierKurves[iContur].size(), countBezierPoints);
+			for (std::list<Bezier>::iterator it = mBezierKurves[iContur].begin(); it != mBezierKurves[iContur].end(); it++) {
+				//printf("point count: %d\n", it->pointCount);
+				it->plot(pixels, textureSize);
+				for (int i = 0; i < it->pointCount; i++) {
+					addVertex(it->points[i]);
+				}
+				mFinalBezierCurves[iContur].addCurve(&(*it), it == mBezierKurves[iContur].begin());
+			}
+			
+			mFinalBezierCurves[iContur].print();
 		}
-		printf("[DRFont::loadGlyph] plot all curves from on glyph in %d ms\n",
+		
+		//mFinalCurvePointCount = mBezierKurves.size() * 2 + 1;
+		
+		printf("[DRFont::loadGlyph] calculate conic-bezier kurves %d ms\n",
 			SDL_GetTicks() - startTicks);
 		//printBeziers();
 		
-		//mTexture->loadFromMemory(pixels, new FontTextureSetFinish);
+		//mTexture->loadFromMemory(pixels);
 		
 		/*glTexImage2D(GL_TEXTURE_2D, 0, 4, textureSize.x, textureSize.y, 0,
 			format, GL_UNSIGNED_BYTE, pixels);*/
 		
 		mTexture->saveIntoFile("testFont.jpg", pixels);
-		
+		for (int iContur = 0; iContur < conturCount; iContur++) {
+			for (std::list<Bezier>::iterator it = mBezierKurves[iContur].begin(); it != mBezierKurves[iContur].end(); it++) {
+				DR_SAVE_DELETE_ARRAY(it->points);
+			}
+			mBezierKurves[iContur].clear();
 		}
-	for (std::list<Bezier>::iterator it = mBezierKurves.begin(); it != mBezierKurves.end(); it++) {
-		DR_SAVE_DELETE_ARRAY(it->points);
+		DR_SAVE_DELETE_ARRAY(mBezierKurves);
 	}
-	mBezierKurves.clear();
+		
 	/*FT_Error error = FT_Load_Glyph(
 		mFontFace,          // handle to face object 
 		glyph_index,   // glyph index           
@@ -251,33 +297,30 @@ void DRFont::addVertex(DRVector2 vertex)
 	mBaseGeo->addIndice(mBaseGeo->getIndexCountFromVector());
 }
 
-void DRFont::addPointToBezier(DRVector2i p, bool onCurve/* = true*/)
+void DRFont::addPointToBezier(DRVector2i p, int conturIndex, bool onCurve /*= true*/)
 {
 	//printf("[DRFont::addPointToBezier] (%d,%d) %d\n", p.x, p.y, onCurve);
 	mTempPoints.push(p);
+	// if one bezire curve is complete
 	if(onCurve && mTempPoints.size() > 1) {
-
 		DRVector2* v = new DRVector2[mTempPoints.size()];
-		mBezierKurves.push_back(Bezier(v, mTempPoints.size()));
+		mBezierKurves[conturIndex].push_back(Bezier(v, mTempPoints.size()));
 		int index = 0;
-		//printf("create bezier with %d\n", mTempPoints.size());
+		// adding points to bezier curve
 		while (!mTempPoints.empty()) {
-		//	printf("adding v: (%d,%d) to array in pos: %d\n",
-			//	mTempPoints.front().x, mTempPoints.front().y, index);
 			v[index++] = mTempPoints.front();
 			mTempPoints.pop();
 		}
-		//printf("added bezier: %s\n", mBezierKurves.back().getAsString().data());
 		// last point of on curve is first point of next curve
-		addPointToBezier(p, true);
+		addPointToBezier(p, conturIndex, true);
 	}
 	
 }
 
-void DRFont::printBeziers()
+void DRFont::printBeziers(int iContur)
 {
 	int count = 0;
-	for (std::list<Bezier>::iterator it = mBezierKurves.begin(); it != mBezierKurves.end(); it++) {
+	for (std::list<Bezier>::iterator it = mBezierKurves[iContur].begin(); it != mBezierKurves[iContur].end(); it++) {
 		printf("bezier: %d: %s\n", count, it->getAsString().data());
 		count++;
 	}
@@ -311,8 +354,8 @@ void DRFont::Bezier::plot(u8* pixels, DRVector2i textureSize) {
 		plotPoint(pixels, textureSize, calculatePointOnBezierRecursive(points, pointCount, t), DRColor(0.0f, 1.0f, 0.0f));
 	}
 	plotPoint(pixels, textureSize, points[pointCount-1], DRColor(1.0f));
-	printf("[DRFont::Bezier::plot] used %d ms for plotting one bezier curve\n",
-		SDL_GetTicks() - startTicks);
+	//printf("[DRFont::Bezier::plot] used %d ms for plotting one bezier curve\n",
+		//SDL_GetTicks() - startTicks);
 }
 DRVector2 DRFont::Bezier::calculatePointOnBezierRecursive(DRVector2* points, int pointCount, float t)
 {
@@ -341,12 +384,12 @@ void DRFont::Bezier::plotPoint(u8* pixels, DRVector2i textureSize, DRVector2 pos
 	int floorX = floor(pos.x);
 	float distXFloor = pos.x - floorX;
 	int floorY = floor(pos.y);
-	if (floorY == textureSize.y) floorY--;
+	while (floorY >= textureSize.y) floorY--;
 	float distYFloor = pos.y - floorY;
 	int ceilX = ceil(pos.x);
 	float distXCeil = ceilX - pos.x;
 	int ceilY = ceil(pos.y);
-	if (ceilY == textureSize.y) ceilY--;
+	while (ceilY >= textureSize.y) ceilY--;
 	float distYCeil = ceilY - pos.y;
 
 	//printf("floorX: %d, ceilX: %d, floorY: %d, ceilY: %d\n", 

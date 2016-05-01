@@ -23,7 +23,9 @@ namespace HUD {
 		if (mParent->getTextFont()->isGeometrieReady()) mParent->getTextFont()->setStaticGeometrie();
 		//mParent->getTextFont()->bind();
 		UniLib::view::Geometrie*geo = controller::BaseGeometrieManager::getInstance()->getGeometrie(controller::BASE_GEOMETRIE_PLANE);
-		if (geo->isReady()) geo->render();
+		if (geo->isReady()) {
+			geo->render();
+		}
 
 		return DR_OK;
 	}
@@ -99,9 +101,10 @@ namespace HUD {
 
 			if (!mFont) {
 				// test
-				mFont = new DRFont(mFontManager, "data/font/MandroidBB.ttf");
+				//mFont = new DRFont(mFontManager, "data/font/MandroidBB.ttf");
+				mFont = new DRFont(mFontManager, "data/font/neuropol_x_rg.ttf");
 				//mFont = new DRFont(mFontManager, "data/font/arial.ttf");
-				mFont->loadGlyph(L'G');
+				mFont->loadGlyph(L'q');
 			}
 
 
@@ -109,7 +112,9 @@ namespace HUD {
 			if (!mRenderCall) {
 				if (mRendererCasted->isTaskFinished()) {
 					//tm->setTexture(mRendererCasted->getTexture());
-					tm->setTexture(mFont->getTexture());
+					if (mFont->getTexture().getResourcePtrHolder()) {
+						tm->setTexture(mFont->getTexture());
+					}
 					mRenderCall = new RootNodeRenderCall(this, m);
 					controller::GPUScheduler::getInstance()->registerGPURenderCommand(mRenderCall, controller::GPU_SCHEDULER_COMMAND_AFTER_RENDERING);
 				}

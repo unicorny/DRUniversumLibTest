@@ -253,7 +253,6 @@ DRReturn load()
 	model::Position* pos = floor->getPosition();
 	pos->setScale(DRVector3(400.0f));
 	pos->setPosition(DRVector3(-200.0f, -50.0f, -200.0f));
-	
 
 	// render to texture test
 	generator::RenderToTexture* testTask = new generator::RenderToTexture(texture);
@@ -265,6 +264,7 @@ DRReturn load()
 	testTask->setMaterial(renderMaterial);
 	controller::TaskPtr renderTestTask(testTask);
 	testTask->scheduleTask(renderTestTask);
+
 
 	// first block
 	model::block::BlockPtr block = model::block::BlockPtr(new model::block::Block("_MATERIAL_NAME_STEEL"));

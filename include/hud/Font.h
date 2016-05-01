@@ -42,13 +42,14 @@ protected:
 	UniLib::view::TexturePtr mTexture;
 	bool mGeometrieReady;
 
-	void addPointToBezier(DRVector2i p, bool onCurve = true);
-	void printBeziers();
+	void addPointToBezier(DRVector2i p, int conturIndex, bool onCurve = true);
+	void printBeziers(int iContur);
 	
 	void addVertex(DRVector2 vertex);
 
 	struct Bezier {
 		Bezier(DRVector2* points, int pointCount) : points(points), pointCount(pointCount) {}
+		//Bezier(): points(NULL), pointCount(0) {}
 		~Bezier() { }
 		DRString getAsString();
 		void plot(u8* pixels, DRVector2i textureSize);
@@ -65,11 +66,68 @@ protected:
 
 		
 	};
+
+	struct BezierCurves {
+		BezierCurves() : points(NULL), indices(NULL) {}
+		~BezierCurves() {
+			DR_SAVE_DELETE_ARRAY(points);
+			DR_SAVE_DELETE_ARRAY(indices);
+		}
+		DRVector2*	points;
+		u16			pointCount;
+		u16*		indices;
+		u16			indiceCount;
+		u16 cursor;
+		u16 indiceCursor;
+		void init(u16 _indiceCount, u16 _pointCount)
+		{
+			indiceCount = _indiceCount;
+			pointCount = _pointCount;
+			points = new DRVector2[_pointCount];
+			indices = new u16[_indiceCount];
+			cursor = 0;
+			indiceCursor = 0;
+		}
+		void addCurve(Bezier* b, bool conturStartCurve = false)
+		{
+			indices[indiceCursor++] = max(0,cursor-1);
+			for (int iCurvePoint = conturStartCurve ? 0 : 1; iCurvePoint < b->pointCount; iCurvePoint++) {
+				if (b->pointCount > 3) {
+					LOG_WARNING("bezier kurve has to many points");
+					break;
+				}
+				if (cursor >= pointCount) {
+					LOG_WARNING("to many points added to array");
+					break;
+				}
+				if (b->pointCount <= iCurvePoint) break;
+				points[cursor++] = b->points[iCurvePoint];
+			}
+		}
+		void print() 
+		{
+			printf("print Bezier points:\n");
+			for (int i = 0; i < indiceCount; i++) {				
+				u16 maxVertex = pointCount;
+				if (i + 1 < indiceCount) maxVertex = indices[i + 1]+1;
+				for (int iVertex = indices[i]; iVertex < maxVertex; iVertex++) {
+					if (iVertex > indices[i]) printf(", ");
+					printf("(%d) %.2f %.2f", iVertex, points[iVertex].x, points[iVertex].y);
+				}
+				printf("\n");
+			}
+		}
+
+	};
+	
 	std::queue<DRVector2i> mTempPoints;
-	std::list<Bezier> mBezierKurves;
+	std::list<Bezier>* mBezierKurves;
 	UniLib::view::VisibleNode* mGeometrie;
 	UniLib::model::geometrie::BaseGeometrie* mBaseGeo;
 	UniLib::lib::MultithreadContainer mGeoReadyMutex;
+	BezierCurves*				mFinalBezierCurves;
+	
+
 };
 
 class FontManager
