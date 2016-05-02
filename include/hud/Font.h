@@ -55,7 +55,6 @@ protected:
 		void plot(u8* pixels, DRVector2i textureSize);
 		Bezier* gradreduktion();
 		
-		void de_casteljau(bool freeMemory = true);
 		DRVector2* points;
 		int pointCount;
 
@@ -84,14 +83,16 @@ protected:
 			indiceCount = _indiceCount;
 			pointCount = _pointCount;
 			points = new DRVector2[_pointCount];
-			indices = new u16[_indiceCount];
+			indices = new u16[_indiceCount*2];
 			cursor = 0;
 			indiceCursor = 0;
 		}
 		void addCurve(Bezier* b, bool conturStartCurve = false)
 		{
-			indices[indiceCursor++] = max(0,cursor-1);
-			for (int iCurvePoint = conturStartCurve ? 0 : 1; iCurvePoint < b->pointCount; iCurvePoint++) {
+			int firstCurvePoint = conturStartCurve ? 0 : 1;
+			indices[indiceCursor * 2] = cursor- firstCurvePoint;
+			
+			for (int iCurvePoint = firstCurvePoint; iCurvePoint < b->pointCount; iCurvePoint++) {
 				if (b->pointCount > 3) {
 					LOG_WARNING("bezier kurve has to many points");
 					break;
@@ -103,19 +104,30 @@ protected:
 				if (b->pointCount <= iCurvePoint) break;
 				points[cursor++] = b->points[iCurvePoint];
 			}
+			indices[indiceCursor * 2 + 1] = cursor - 1;
+			indiceCursor++;
+		}
+		void scale(DRVector2 scaleFaktor) {
+			for (int i = 0; i < pointCount; i++) {
+				points[i] *= scaleFaktor;
+			}
 		}
 		void print() 
 		{
 			printf("print Bezier points:\n");
-			for (int i = 0; i < indiceCount; i++) {				
-				u16 maxVertex = pointCount;
-				if (i + 1 < indiceCount) maxVertex = indices[i + 1]+1;
-				for (int iVertex = indices[i]; iVertex < maxVertex; iVertex++) {
-					if (iVertex > indices[i]) printf(", ");
+			for (int i = 0; i < indiceCursor; i++) {
+				for (int iVertex = indices[i * 2]; iVertex <= indices[i * 2 + 1]; iVertex++) {
+					if (iVertex > indices[i * 2]) printf(", ");
 					printf("(%d) %.2f %.2f", iVertex, points[iVertex].x, points[iVertex].y);
 				}
 				printf("\n");
 			}
+		/*	printf("indices: \n");
+			for (int i = 0; i < indiceCount; i++) {
+				printf("(%d, %d), ", indices[i*2], indices[i*2+1]);
+				if (i == 6) printf("\n");
+			}*/
+			printf("\n");
 		}
 
 	};
@@ -125,7 +137,7 @@ protected:
 	UniLib::view::VisibleNode* mGeometrie;
 	UniLib::model::geometrie::BaseGeometrie* mBaseGeo;
 	UniLib::lib::MultithreadContainer mGeoReadyMutex;
-	BezierCurves*				mFinalBezierCurves;
+	BezierCurves				mFinalBezierCurves;
 	
 
 };

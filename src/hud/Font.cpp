@@ -14,7 +14,7 @@
 using namespace UniLib;
 
 DRFont::DRFont(FontManager* fm, const char* filename)
-	: mFontFace(NULL), mGeometrieReady(false), mBezierKurves(NULL), mGeometrie(NULL), mBaseGeo(NULL), mFinalBezierCurves(NULL)
+	: mFontFace(NULL), mGeometrieReady(false), mBezierKurves(NULL), mGeometrie(NULL), mBaseGeo(NULL)
 {
 	/* 
 	loading from memory:
@@ -46,7 +46,6 @@ DRFont::DRFont(FontManager* fm, const char* filename)
 DRFont::~DRFont()
 {
 	DR_SAVE_DELETE_ARRAY(mBezierKurves);
-	DR_SAVE_DELETE_ARRAY(mFinalBezierCurves);
 	FT_Done_Face(mFontFace);
 	//DR_SAVE_DELETE(mGeometrie);
 	
@@ -142,7 +141,6 @@ void DRFont::loadGlyph(FT_ULong c)
 		u8* pixels = new u8[textureSize.x*textureSize.y * 4];
 		memset(pixels, 0, sizeof(u8)*textureSize.x*textureSize.y * 4);
 		mBezierKurves = new std::list<Bezier>[conturCount];
-		mFinalBezierCurves = new BezierCurves[conturCount];
 		for (short contur = 0; contur < conturCount; contur++) {
 			short start = 0;
 			while (!mTempPoints.empty()) mTempPoints.pop();
@@ -194,8 +192,8 @@ void DRFont::loadGlyph(FT_ULong c)
 				if (f & 4 == 4) {
 					// bits 5-7 contain drop out mode
 				}
-				printf("point: %d (%d,%d), point type: %s\n",
-					i, p.x, p.y, pointType.data());
+				//printf("point: %d (%d,%d), point type: %s\n",
+					//i, p.x, p.y, pointType.data());
 				
 			}
 
@@ -203,7 +201,7 @@ void DRFont::loadGlyph(FT_ULong c)
 		}
 		// draw bezier curves
 		Uint32 startTicks = SDL_GetTicks();
-		
+		DRVector2 scaleFaktor(1.0f/(boundingBox.xMax - boundingBox.xMin), 1.0f/(boundingBox.yMax - boundingBox.yMin));
 		for (int iContur = 0; iContur < conturCount; iContur++) {
 			bool reduktionCalled = true;
 			while (reduktionCalled) {
@@ -223,23 +221,33 @@ void DRFont::loadGlyph(FT_ULong c)
 			printf("bezier count: %d\n", mBezierKurves[iContur].size());
 			//printBeziers(iContur);
 
-			u16 countBezierPoints = 1;	
+		}
+		u16 countBezierPoints = conturCount;
+		u16 countIndices = 0;
+		for (int iContur = 0; iContur < conturCount; iContur++) {
+			countIndices += mBezierKurves[iContur].size();
 			for (std::list<Bezier>::iterator it = mBezierKurves[iContur].begin(); it != mBezierKurves[iContur].end(); it++) {
 				countBezierPoints += it->pointCount - 1;
 			}
-			
-			mFinalBezierCurves[iContur].init(mBezierKurves[iContur].size(), countBezierPoints);
+		}
+
+		mFinalBezierCurves.init(countIndices, countBezierPoints);
+		int bezierCount = 0;
+		for (int iContur = 0; iContur < conturCount; iContur++) {
+			printf("iContur: %d\n", iContur);
 			for (std::list<Bezier>::iterator it = mBezierKurves[iContur].begin(); it != mBezierKurves[iContur].end(); it++) {
 				//printf("point count: %d\n", it->pointCount);
 				it->plot(pixels, textureSize);
 				for (int i = 0; i < it->pointCount; i++) {
 					addVertex(it->points[i]);
 				}
-				mFinalBezierCurves[iContur].addCurve(&(*it), it == mBezierKurves[iContur].begin());
+				//printf("bezier: (%d): %s\n", bezierCount+=it->pointCount-1, it->getAsString().data());
+				mFinalBezierCurves.addCurve(&(*it), it == mBezierKurves[iContur].begin());
 			}
 			
-			mFinalBezierCurves[iContur].print();
 		}
+		mFinalBezierCurves.scale(scaleFaktor);
+		mFinalBezierCurves.print();
 		
 		//mFinalCurvePointCount = mBezierKurves.size() * 2 + 1;
 		
@@ -359,20 +367,12 @@ void DRFont::Bezier::plot(u8* pixels, DRVector2i textureSize) {
 }
 DRVector2 DRFont::Bezier::calculatePointOnBezierRecursive(DRVector2* points, int pointCount, float t)
 {
-	int count = pointCount-1;
-	DRVector2* vectors = new DRVector2[pointCount-1];
-	for (int i = 0; i < count; i++) {
-		vectors[i] = points[i] + (points[i + 1] - points[i]) * t;
-	}
-	DRVector2 result(0.0f);
-	if (count == 1) {
-		result = vectors[0];
-	}
-	else {
-		result = calculatePointOnBezierRecursive(vectors, count, t);
-	}
-	DR_SAVE_DELETE_ARRAY(vectors);
-	return result;
+	DRBezierCurve2 bezier(points, pointCount);
+
+	DRVector2 res = bezier.calculatePointOnCurve(t);
+	bezier.setNodeMemory(NULL, 0);
+	return res;
+	
 }
 void DRFont::Bezier::plotPoint(u8* pixels, DRVector2i textureSize, DRVector2 pos, DRColor color)
 {
@@ -433,34 +433,18 @@ DRString DRFont::Bezier::getAsString()
 
 DRFont::Bezier* DRFont::Bezier::gradreduktion()
 {
-	if (pointCount == 4) {
-		DRVector2* newPoints = new DRVector2[pointCount - 1];
-		newPoints[0] = points[0];
-		newPoints[2] = points[3];
-		newPoints[1] = 0.5f * (points[1] + points[2]);
-		DR_SAVE_DELETE_ARRAY(points);
-		points = newPoints;
-		pointCount--;
-	}
-	else if (pointCount > 4) {
-		//printf("[DRFont::Bezier::gradreduktion] points: %d\n", pointCount);
-		// center point 
-		//DRVector2 center = calculatePointOnBezierRecursive(points, pointCount, 0.5f);
-		DRVector2* orgPointArray = points;
-		int orgPointCount = pointCount;
-		DRVector2* secondPointArray = new DRVector2[orgPointCount];
-		de_casteljau(false);
-		memcpy(orgPointArray, points, sizeof(DRVector2)*orgPointCount);
-		memcpy(secondPointArray, &points[orgPointCount-1], sizeof(DRVector2)*orgPointCount);
-		DR_SAVE_DELETE_ARRAY(points);
-		points = orgPointArray;
-		pointCount = orgPointCount;
-		Bezier* bez = new Bezier(secondPointArray, pointCount);
-		gradreduktion4();
-		bez->gradreduktion4();
+	DRBezierCurve2 bezier(points, pointCount);
+	DRBezierCurve2* b2 = bezier.gradreduktionAndSplit();
+	pointCount = bezier.getNodeCount();
+	points = bezier.getNodes();
+	bezier.setNodeMemory(NULL, 0);
+	if (b2) {
+		Bezier* bez = new Bezier(b2->getNodes(), pointCount);
+		b2->setNodeMemory(NULL, 0);
 		return bez;
 	}
 	return NULL;
+
 }
 void DRFont::Bezier::gradreduktion4()
 {
@@ -488,93 +472,6 @@ void DRFont::Bezier::gradreduktion4()
 	pointCount = newCount;
 }
 
-void DRFont::Bezier::de_casteljau(bool freeMemory /*= true*/)
-{
-	// calculate vector count
-	int vectorCount = 0;
-	for (int i = 0; i <= pointCount; i++) {
-		vectorCount += i;
-	}
-	//if (vectorCount == 3) vectorCount++;
-	DRVector2* tempPoints = new DRVector2[vectorCount];
-	memcpy(tempPoints, points, sizeof(DRVector2)*pointCount);
-	int currentTempIndex = pointCount;
-	int currentDimension = pointCount;
-	int currentReadPosition = 0;
-	float t = 0.5f;
-	//printf("[DRFont::Bezier::de_casteljau] vectorCount: %d, pointCount: %d\n", vectorCount, pointCount);
-	while (currentTempIndex < vectorCount) {
-		for (int i = 0; i < currentDimension-1; i++) {
-		//	printf("currentTempIndex: %d + i(%d) = %d, currentReadPosition: %d\n",
-			//	currentTempIndex, i, currentTempIndex, currentReadPosition);
-
-			tempPoints[currentTempIndex++] = tempPoints[currentReadPosition] + t*(tempPoints[currentReadPosition + 1] - tempPoints[currentReadPosition]);
-			currentReadPosition++;
-		}
-		currentDimension--;
-		currentReadPosition++;
-	}
-	/*printf("temp points: \n");
-	for (int i = 0; i < vectorCount; i++) {
-		printf("(%d): %f, %f\n", i, tempPoints[i].x, tempPoints[i].y);
-	}
-	//*/
-	int newPointsCount = 3 + (pointCount-2)*2;
-	int indexCenterPoint = 1 + pointCount - 2;
-	DRVector2* newPoints = new DRVector2[newPointsCount];
-	
-	newPoints[0] = points[0];
-	int newPointIndex = 1;
-	int subtractIndex = 0;
-//	printf("[DRFont::Bezier::de_casteljau] newPointsCount: %d, pointCount: %d, indexCenterPoint: %d\n",
-	//	newPointsCount, pointCount, indexCenterPoint);
-	for (int i = 0; i < pointCount - 2; i++) {
-		subtractIndex += i;
-	//	printf("(%d) firstIndex: %d, secondIndex: %d\n",
-	//		i, newPointIndex, newPointsCount - newPointIndex - 1);
-		// aufsteigend
-		newPoints[newPointIndex++] = tempPoints[pointCount + 1 + i*pointCount - subtractIndex];
-		
-		// absteigend
-		newPoints[newPointsCount - newPointIndex] = tempPoints[vectorCount - 2 - subtractIndex - i];
-	}
-	newPoints[indexCenterPoint] = tempPoints[vectorCount - 1];
-	//DRVector2 cp = calculatePointOnBezierRecursive(points, pointCount, t);
-	/*printf("center point A: %f, %f, center point B: %f, %f\n",
-		newPoints[indexCenterPoint].x, newPoints[indexCenterPoint].y,
-		cp.x, cp.y);
-		*/
-	/*if (newPoints[indexCenterPoint] != cp) {
-		printf("============ error cp not the same! ==================\n");
-	}*/
-	newPoints[newPointsCount - 1] = points[pointCount - 1];
-/*	printf("new points: \n");
-	for (int i = 0; i < newPointsCount; i++) {
-		printf("(%d): %f, %f\n", i, newPoints[i].x, newPoints[i].x);
-	}
-	//*/
-	/*newPoints[1] = tempPoints[pointCount + 1]; // i = 0, subtractIndex = 0
-	newPoints[2] = tempPoints[pointCount + pointCount - 1 + 1]; // i = 1, subtractIndex = 1
-	newPoints[3] = tempPoints[pointCount + pointCount - 2 + pointCount - 1 + 1]; // i = 2, subtractIndex = 3
-	//						  pointsCount + pointsCount-3 + pointsCount -2 + pointsCount - 1 + 1 //i = 3, subtractIndex = 6
- 	// center
-	newPoints[4] = tempPoints[vectorCount];
-
-	newPoints[5] = tempPoints[vectorCount - 1]; // i = 0
-	newPoints[6] = tempPoints[vectorCount - 1 - 2 - 1]; // i = 1, subtractIndex = 3
-	newPoints[7] = tempPoints[vectorCount - 1 - 2 - 3 - 1]; // i = 2, subtractIndex = 6			
-	//						  vectorCount - 1 - 2 - 3 - 4 - 1 //I = 3, subtractIndex = 10
-	*/
-	
-	DR_SAVE_DELETE_ARRAY(tempPoints);
-	if (freeMemory) {
-		DR_SAVE_DELETE_ARRAY(points);
-	}
-	points = newPoints;
-	pointCount = newPointsCount;
-
-//	printf("[DRFont::Bezier::de_casteljau] vectorCount: %d, pointCount: %d\n", vectorCount, pointCount);
-}
 
 //********************************************************************
 FontManager::FontManager()

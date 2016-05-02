@@ -101,8 +101,8 @@ namespace HUD {
 
 			if (!mFont) {
 				// test
-				//mFont = new DRFont(mFontManager, "data/font/MandroidBB.ttf");
-				mFont = new DRFont(mFontManager, "data/font/neuropol_x_rg.ttf");
+				mFont = new DRFont(mFontManager, "data/font/MandroidBB.ttf");
+				//mFont = new DRFont(mFontManager, "data/font/neuropol_x_rg.ttf");
 				//mFont = new DRFont(mFontManager, "data/font/arial.ttf");
 				mFont->loadGlyph(L'q');
 			}
