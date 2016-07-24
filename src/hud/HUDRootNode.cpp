@@ -6,8 +6,10 @@
 #include "controller/BindToRenderer.h"
 #include "controller/BaseGeometrieManager.h"
 #include "controller/GPUScheduler.h"
+#include "controller/CPUTask.h"
 #include "controller/ShaderManager.h"
 #include "Material.h"
+#include "hud/FontManager.h"
 
 using namespace UniLib;
 
@@ -20,7 +22,7 @@ namespace HUD {
 	{
 		assert(mMaterial.getResourcePtrHolder());
 		mMaterial->bind();
-		if (mParent->getTextFont()->isGeometrieReady()) mParent->getTextFont()->setStaticGeometrie();
+		if (mParent->getTextFont() && mParent->getTextFont()->isGeometrieReady()) mParent->getTextFont()->setStaticGeometrie();
 		//mParent->getTextFont()->bind();
 		UniLib::view::Geometrie*geo = controller::BaseGeometrieManager::getInstance()->getGeometrie(controller::BASE_GEOMETRIE_PLANE);
 		if (geo->isReady()) {
@@ -64,16 +66,38 @@ namespace HUD {
 
 	}
 
-	DRReturn RootNode::init(DRVector2i screenResolution, int fps_update)
+	DRReturn RootNode::init(DRVector2i screenResolution, const char* hud_config_json, int fps_update)
 	{
 		mScreenResolution = screenResolution;
 		mFPS_Updates = fps_update;
 		mFontManager = new FontManager;
+		controller::TaskPtr task(new ConfigJsonLoadTask(this, hud_config_json));
+		task->scheduleTask(task);
+//		condSignal();
+		return DR_OK;
+	}
 
-
+	DRReturn RootNode::loadFromConfig(std::string jsonfConfigString)
+	{
+		Json::Value json = convertStringToJson(jsonfConfigString);
+		Json::Value fonts = json.get("fonts", Json::Value());
+		if (fonts.isArray()) {
+			for (int i = 0; i < fonts.size(); i++) {
+				Json::Value font = fonts[i];
+				std::string weight = font.get("weight", "normal").asString();
+				std::string name = font.get("name", "").asString();
+				std::string path = font.get("path", "").asString();
+				bool isDefault = font.get("default", false).asBool();
+				EngineLog.writeToLog("adding font: %s (%s) with %s",
+					name.data(), path.data(), weight.data());
+				mFontManager->addFont(name.data(), path.data(), weight.data(), isDefault);
+			}
+		}
 		condSignal();
 		return DR_OK;
 	}
+
+
 	void RootNode::exit()
 	{
 		
@@ -112,7 +136,7 @@ namespace HUD {
 			if (!mRenderCall) {
 				if (mRendererCasted->isTaskFinished()) {
 					//tm->setTexture(mRendererCasted->getTexture());
-					if (mFont->getTexture().getResourcePtrHolder()) {
+					if (mFont && mFont->getTexture().getResourcePtrHolder()) {
 						tm->setTexture(mFont->getTexture());
 					}
 					mRenderCall = new RootNodeRenderCall(this, m);

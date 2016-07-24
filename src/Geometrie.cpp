@@ -23,8 +23,7 @@ DRReturn Geometrie::uploadToGPU()
 	geometrie::BaseGeometrie* g = mGeometrieModel;
 	// create buffer
 	glGenBuffers(2, mGLBufferIDs);
-	
-
+ 
 	int vertexCount = g->getVertexCount();
 	int vertexSize = g->getVertexSize();
 	mIndexCount = g->getIndexCount();
@@ -70,7 +69,7 @@ DRReturn Geometrie::uploadToGPU()
 
 	// deactivate buffer
 	
-	
+	DR_SAVE_DELETE(mGeometrieModel);
 	//glBindVertexArray(0);
 	if (DRGrafikError("error by uploading geometrie to GPU")) LOG_ERROR("error in geometrie", DR_ERROR);
 	return DR_OK;

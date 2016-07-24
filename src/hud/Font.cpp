@@ -1,4 +1,5 @@
 #include "hud/Font.h"
+#include "hud/FontManager.h"
 #include "Texture.h"
 
 #include "view/VisibleNode.h"
@@ -14,7 +15,8 @@
 using namespace UniLib;
 
 DRFont::DRFont(FontManager* fm, const char* filename)
-	: mFontFace(NULL), mGeometrieReady(false), mBezierKurves(NULL), mGeometrie(NULL), mBaseGeo(NULL)
+	: mFontFace(NULL), mGeometrieReady(false), mBezierKurves(NULL), mGeometrie(NULL), mBaseGeo(NULL),
+	mGlyphGrid(NULL), mGridSize(0)
 {
 	/* 
 	loading from memory:
@@ -41,11 +43,13 @@ DRFont::DRFont(FontManager* fm, const char* filename)
 		LOG_ERROR_VOID("Font file couldn't read");
 	}
 	EngineLog.writeToLog("font face count: %d", mFontFace->num_faces);
+	mLoadingState = LOADING_STATE_HAS_INFORMATIONS;
 }
 
 DRFont::~DRFont()
 {
 	DR_SAVE_DELETE_ARRAY(mBezierKurves);
+	DR_SAVE_DELETE_ARRAY(mGlyphGrid);
 	FT_Done_Face(mFontFace);
 	//DR_SAVE_DELETE(mGeometrie);
 	
@@ -247,7 +251,7 @@ void DRFont::loadGlyph(FT_ULong c)
 			
 		}
 		mFinalBezierCurves.scale(scaleFaktor);
-		mFinalBezierCurves.print();
+		//mFinalBezierCurves.print();
 		
 		//mFinalCurvePointCount = mBezierKurves.size() * 2 + 1;
 		
@@ -259,8 +263,33 @@ void DRFont::loadGlyph(FT_ULong c)
 		
 		/*glTexImage2D(GL_TEXTURE_2D, 0, 4, textureSize.x, textureSize.y, 0,
 			format, GL_UNSIGNED_BYTE, pixels);*/
-		
+		mGridSize = 8;
+		float stepSize = 1.0f / (float)mGridSize;
+		mGlyphGrid = new GridNode[mGridSize*mGridSize];
+		for (int y = 0; y < mGridSize; y++) {
+			for (int x = 0; x < mGridSize; x++) {
+				int i = y*mGridSize + x;		
+				mGlyphGrid[i].mBB = DRBoundingBox(DRVector2(stepSize*x, stepSize*y), 
+												  DRVector2(stepSize*(x+1), stepSize*(y+1)));
+				//printf("(%d): %f %f %f %f\n", i, stepSize*x, stepSize*y, stepSize*(x + 1), stepSize*(y + 1));
+			}
+		}
+		// putting bezier curves into grid
+		for (int i = 0; i < mFinalBezierCurves.indiceCount; i++) {
+			DRBoundingBox bb = mFinalBezierCurves.getBoundingBoxForBezier(i);
+			DRVector2i gridIndexMin = GridNode::getGridIndex(bb.getMin(), stepSize);
+			DRVector2i gridIndexMax = GridNode::getGridIndex(bb.getMax(), stepSize);
+			//printf("(%d) min: %d, %d, max: %d, %d\n", i, gridIndexMin.x, gridIndexMin.y, gridIndexMax.x, gridIndexMax.y);
+			for (int iy = gridIndexMin.y; iy <= gridIndexMax.y; iy++) {
+				for (int ix = gridIndexMin.x; ix <= gridIndexMax.x; ix++) {
+					mGlyphGrid[iy*mGridSize + ix].addIndex(i);
+				}
+			}
+		}
+
 		mTexture->saveIntoFile("testFont.jpg", pixels);
+		// clean up
+		// bezier curves
 		for (int iContur = 0; iContur < conturCount; iContur++) {
 			for (std::list<Bezier>::iterator it = mBezierKurves[iContur].begin(); it != mBezierKurves[iContur].end(); it++) {
 				DR_SAVE_DELETE_ARRAY(it->points);
@@ -268,6 +297,8 @@ void DRFont::loadGlyph(FT_ULong c)
 			mBezierKurves[iContur].clear();
 		}
 		DR_SAVE_DELETE_ARRAY(mBezierKurves);
+		// grid
+		
 	}
 		
 	/*FT_Error error = FT_Load_Glyph(
@@ -473,19 +504,3 @@ void DRFont::Bezier::gradreduktion4()
 }
 
 
-//********************************************************************
-FontManager::FontManager()
-	: mFreeTypeLibrayHandle(NULL)
-{
-	FT_Error error = FT_Init_FreeType(&mFreeTypeLibrayHandle);
-	if (error)
-	{
-		EngineLog.writeToLog("error code: %d", error);
-		LOG_ERROR_VOID("error by loading freetype lib");
-	}
-}
-
-FontManager::~FontManager()
-{
-	FT_Done_FreeType(mFreeTypeLibrayHandle);
-}

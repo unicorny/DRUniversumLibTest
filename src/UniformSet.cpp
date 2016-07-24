@@ -29,6 +29,7 @@ DRReturn UniformSet::addLocationToUniform(const char* name, model::ShaderProgram
 			LOG_ERROR("Error by addLocationToUniform", DR_ERROR);
 		}
 	}
+	return DR_OK;
 }
 DRReturn UniformSet::removeLocationFromUniform(const char* name, model::ShaderProgram* program)
 {

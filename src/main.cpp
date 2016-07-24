@@ -281,7 +281,7 @@ DRReturn load()
 	
 	// HUD
 	g_HUDRootNode = new HUD::RootNode();
-	g_HUDRootNode->init(g_v2WindowLength);
+	g_HUDRootNode->init(g_v2WindowLength, "data/material/hud.json");
 	gWorld->addStaticGeometrie(floor);
 	//*/
 	// loading from json

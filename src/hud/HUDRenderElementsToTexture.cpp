@@ -33,10 +33,11 @@ namespace HUD {
 
 	DRReturn RenderElementsToTexture::useTextureWithSize(DRVector2i size)
 	{
+		DRVector2i textureSize(pow(2, ceil(log2(size.x))), pow(2, ceil(log2(size.y))));
 		lock();
-		if (mTaskFinished && mTexture->getTextureSize() != size) {
+		if (mTaskFinished && mTexture->getTextureSize() != textureSize) {
 			mTaskFinished = false;
-			mTexture = controller::TextureManager::getInstance()->getEmptyTexture(size, GL_RGBA);
+			mTexture = controller::TextureManager::getInstance()->getEmptyTexture(textureSize, GL_RGBA);
 			mNewTextureAssigned = true;
 			mFrameBuffer->setTexture(mTexture);
 			unlock();

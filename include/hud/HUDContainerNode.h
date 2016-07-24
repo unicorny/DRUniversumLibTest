@@ -2,8 +2,10 @@
 #define __DR_MICRO_SPACECRAFT_HUD_CONTAINER_NODE_H
 
 #include "model/Position.h"
-#include "lib/MultithreadContainer.h"
+#include "HUDElement.h"
 #include "HUDRenderElementsToTexture.h"
+#include "lib/MultithreadMap.h"
+
 
 namespace UniLib {
 	namespace controller {
@@ -18,6 +20,8 @@ namespace UniLib {
 
 namespace HUD {
 	class Element;
+	class RootNode;
+
 	class ContainerNode : public UniLib::lib::MultithreadContainer
 	{
 	public:
@@ -32,25 +36,62 @@ namespace HUD {
 		__inline__ HASH getId() { return mHashId; }
 		__inline__ std::string getName() { return mName; }
 
-		// adding new element to container
-		DRReturn addContainerNode(ContainerNode* ele);
-		ContainerNode* findContainerNode(HASH id);
-		// removing an existing element from container
-		ContainerNode* removeContainerNode(HASH id);
+		//! \brief adding new element to container
+		//! release memory in deconstruction with delete
+		__inline__ DRReturn addContainerNode(ContainerNode* ele)
+		{
+			ContainerNode* dub = NULL;
+			if (mContainerNodes.s_add(ele->getId(), ele, &dub)) {
+				UniLib::EngineLog.writeToLog("HUD Container Node: %s has the same id as: %s",
+					ele->getName().data(), dub->getName().data());
+				return DR_ERROR;
+			}
+			return DR_OK;
+		}
+		//! \brief adding new element 
+		//! release memory in deconstruction with delete
+		__inline__ DRReturn addElementNode(Element* ele) {
+			Element* dub = NULL;
+			if (mElementNodes.s_add(ele->getId(), ele, &dub)) {
+				UniLib::EngineLog.writeToLog("HUD Element Node: %s has the same id as: %s",
+					ele->getName().data(), dub->getName().data());
+				return DR_ERROR;
+			}
+			return DR_OK;
+		}
+		//! \brief simply get a pointer to container node
+		__inline__ ContainerNode* findContainerNode(HASH id) {
+			return mContainerNodes.s_find(id);
+		}
+		__inline__ Element* findElementNode(HASH id) {
+			return mElementNodes.s_find(id);
+		}
+		//! \brief removing an existing element from container
+		//! maybe useful to prevent auto cleanup
+		__inline__ ContainerNode* removeContainerNode(HASH id) {
+			return mContainerNodes.s_remove(id);
+		}
+		__inline__ Element* removeElementNode(HASH id) {
+			return mElementNodes.s_remove(id);
+		}
 
 		bool const operator == (ContainerNode& b) const;
 
+		virtual RootNode* getRootNode() { return mParent->getRootNode(); }
+
 	protected:
-		virtual const DRBoundingBox calculateSize();
+
+		virtual const DRBoundingBoxi calculateSize();
 		UniLib::view::TexturePtr getTexture() { return mRendererCasted->getTexture(); }
 
 		bool mMustRerender;
 		UniLib::model::Position mPosition;
 		std::string mName;
 		HASH mHashId;
-		typedef std::map<HASH, ContainerNode*> ContainerNodeMap;
-		typedef std::pair<HASH, ContainerNode*> ContainerNodePair;
+		typedef UniLib::lib::MultithreadMap<HASH, ContainerNode*> ContainerNodeMap;
+		typedef UniLib::lib::MultithreadMap<HASH, Element*> ElementNodeMap;
 		ContainerNodeMap mContainerNodes;
+		ElementNodeMap mElementNodes;
 		ContainerNode* mParent;
 		RenderElementsToTexture* mRendererCasted;
 		UniLib::controller::TaskPtr mRenderer;

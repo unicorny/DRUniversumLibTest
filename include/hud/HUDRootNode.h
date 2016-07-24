@@ -5,6 +5,7 @@
 #include "HUDContainerNode.h"
 #include "controller/GPUTask.h"
 #include "controller/GPUScheduler.h"
+#include "controller/CPUTask.h"
 #include "Font.h"
 
 namespace UniLib {
@@ -37,6 +38,7 @@ namespace HUD {
 		RootNode* mParent;
 	};
 
+
 	class RootNode : public UniLib::lib::Thread, public ContainerNode
 	{
 	public:
@@ -44,12 +46,19 @@ namespace HUD {
 		~RootNode();
 
 		// \param fps_update how many times per second should the HUD update
-		DRReturn init(DRVector2i screenResolution, int fps_update = 15);
+		DRReturn init(DRVector2i screenResolution, const char* hud_config_json, int fps_update = 15);
 		void exit();
 
 		__inline__ FontManager* getFontManager() { return mFontManager; }
 		__inline__ DRFont* getTextFont() { return mFont; }
+
+		DRReturn loadFromConfig(std::string jsonfConfigString);
+
+		
 	protected:
+
+		virtual RootNode* getRootNode() { return this; }
+
 		//! move function for HUD, independent from rest of game
 		//! \brief will be called every time from thread, when condSignal was called
 		//! will be called from thread with locked working mutex,<br>
@@ -57,15 +66,33 @@ namespace HUD {
 		//! \return if return isn't 0, thread will exit
 		virtual int ThreadFunction();
 
+		
+
 		DRVector2i mScreenResolution;
 		int		   mFPS_Updates;
 		bool	mExitCalled;
 		RootNodeRenderCall* mRenderCall;
 
+
 		// for testing
 		FontManager* mFontManager;
 		DRFont* mFont;
 
+	};
+
+
+	class ConfigJsonLoadTask : public UniLib::controller::CPUTask
+	{
+	public:
+		ConfigJsonLoadTask(RootNode* caller, const char* fileName)
+			: CPUTask(UniLib::g_HarddiskScheduler), mCaller(caller), mConfigFileName(fileName) {}
+
+		virtual DRReturn run() {
+			return mCaller->loadFromConfig(UniLib::readFileAsString(mConfigFileName));
+		}
+	protected:
+		RootNode* mCaller;
+		std::string mConfigFileName;
 	};
 }
 

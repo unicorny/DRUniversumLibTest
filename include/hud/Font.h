@@ -4,6 +4,7 @@
 #include "UniversumLib.h"
 #include "MicroSpacecraft.h"
 #include "lib/MultithreadContainer.h"
+#include "lib/Loadable.h"
 #include "ft2build.h"
 #include FT_FREETYPE_H
 
@@ -24,7 +25,7 @@ namespace UniLib {
 }
 
 class FontManager;
-class DRFont 
+class DRFont : public UniLib::lib::Loadable
 {
 public:
 	DRFont(FontManager* fm, const char* filename);
@@ -130,6 +131,30 @@ protected:
 			printf("\n");
 		}
 
+		DRBoundingBox getBoundingBoxForBezier(int index) {
+			DRVector2 minV(100.0f);
+			DRVector2 maxV(0.0f);
+			for (int i = indices[index * 2]; i < indices[index * 2 + 1]; i++) {
+				minV = min(points[i], minV);
+				maxV = max(points[i], maxV);
+			}
+			return DRBoundingBox(minV, maxV);
+		}
+
+	};
+
+	struct GridNode
+	{
+		void addIndex(int index) { mIndices.push_back(index); }
+		std::list<int> mIndices;
+		DRBoundingBox mBB;
+
+		static DRVector2i getGridIndex(DRVector2 v, float stepSize) {
+			float ix = 0, iy = 0;
+			modf(v.x / stepSize, &ix);
+			modf(v.y / stepSize, &iy);
+			return DRVector2i(ix, iy);
+		}
 	};
 	
 	std::queue<DRVector2i> mTempPoints;
@@ -138,21 +163,11 @@ protected:
 	UniLib::model::geometrie::BaseGeometrie* mBaseGeo;
 	UniLib::lib::MultithreadContainer mGeoReadyMutex;
 	BezierCurves				mFinalBezierCurves;
+	GridNode*					mGlyphGrid;
+	u8							mGridSize;
 	
 
 };
 
-class FontManager
-{
-public:
-	FontManager();
-	~FontManager();
-
-	__inline__ FT_Library* getLib() { return &mFreeTypeLibrayHandle; }
-
-protected:
-	FT_Library mFreeTypeLibrayHandle;
-
-};
 
 #endif //__DR_MICRO_SPACECRAFT_FONT_H
