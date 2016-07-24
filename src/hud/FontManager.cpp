@@ -5,7 +5,7 @@ using namespace UniLib;
 
 //********************************************************************
 FontManager::FontManager()
-	: mFreeTypeLibrayHandle(NULL), mDefaultFontHash(0)
+	: mFreeTypeLibrayHandle(NULL), mDefaultFontHash(0), mGlyphCount(0), mGlyphMap(NULL)
 {
 	FT_Error error = FT_Init_FreeType(&mFreeTypeLibrayHandle);
 	if (error)
@@ -34,6 +34,19 @@ DRReturn FontManager::addFont(const char* fontName, const char* fontPath, const 
 	if (isDefault) mDefaultFontHash = id;
 
 	return DR_OK;
+}
+
+void FontManager::setGlyphMap(std::queue<u32>& glyph)
+{
+	DR_SAVE_DELETE_ARRAY(mGlyphMap);
+	mGlyphCount = glyph.size();
+	mGlyphMap = new u32[mGlyphCount];
+	int cursor = 0;
+	while (!glyph.empty()) {
+		assert(cursor < mGlyphCount);
+		mGlyphMap[cursor++] = glyph.front();
+		glyph.pop();
+	}
 }
 
 FontWeights FontManager::getFontWeight(const char* fontWeight)

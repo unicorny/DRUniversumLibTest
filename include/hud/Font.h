@@ -63,7 +63,6 @@ protected:
 		void plotPoint(u8* pixels, DRVector2i textureSize, DRVector2 pos, DRColor color);
 		void gradreduktion4();
 		DRVector2 calculatePointOnBezierRecursive(DRVector2* points, int pointCount, float t);
-
 		
 	};
 

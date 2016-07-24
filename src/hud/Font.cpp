@@ -67,7 +67,8 @@ public:
 
 void DRFont::loadGlyph(FT_ULong c)
 {
-
+	//EngineLog.writeAsBinary("load glyph ", c);
+	//EngineLog.writeToLog("glyph as number: %d", c);
 	if (!mGeometrie) {
 		mGeometrie = new view::VisibleNode;
 		view::MaterialPtr materialPtr = view::MaterialPtr(new Material);

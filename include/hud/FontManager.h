@@ -37,11 +37,14 @@ public:
 	static FontWeights getFontWeight(const char* fontWeight);
 	static const char* getFontWeight(FontWeights fontWeights);
 
+	void setGlyphMap(std::queue<u32>& glyph);
 protected:
 	FT_Library mFreeTypeLibrayHandle;
 	typedef UniLib::lib::MultithreadMap<DHASH, DRFont*> FontMap;
 	FontMap mFonts;
 	DHASH mDefaultFontHash;
+	int mGlyphCount;
+	u32* mGlyphMap;
 };
 
 

@@ -81,6 +81,41 @@ namespace HUD {
 	{
 		Json::Value json = convertStringToJson(jsonfConfigString);
 		Json::Value fonts = json.get("fonts", Json::Value());
+		Json::Value glyphs = json.get("glyphs", Json::Value());
+
+		if (glyphs.isArray()) {
+			std::queue<u32> glyphsMap;
+			for (int i = 0; i < glyphs.size(); i++) {
+				Json::Value glyph = glyphs[i];
+				if (glyph.isObject()) {
+					int start = glyph.get("start", 0).asInt();
+					int end = glyph.get("end", 0).asInt();
+					//unsigned long characterAsNumber = 33;
+					//EngineLog.writeAsBinary("start:! ", characterAsNumber);
+					for (int i = start; i <= end; i++) {
+						glyphsMap.push(i);
+					}
+				}
+				else if (glyph.isString()) {
+					std::string character = glyph.asString().data();
+					EngineLog.writeToLog("%d, %d", character.data()[1] | 64, character.length());
+					unsigned long characterAsNumber = 0;
+					if (character.length() == 1) {
+						glyphsMap.push(character.data()[0]);
+					}
+					else if (character.length() == 2) {
+						characterAsNumber = (character.data()[1] | 64) & 0x000000ff;
+						glyphsMap.push(characterAsNumber);
+					}
+					else {
+						EngineLog.writeToLog("glyph: %s, length: %d", character.data(), character.length());
+						LOG_ERROR("glyph type not supported!", DR_ERROR);
+					}
+				}
+			}
+			mFontManager->setGlyphMap(glyphsMap);
+		}
+
 		if (fonts.isArray()) {
 			for (int i = 0; i < fonts.size(); i++) {
 				Json::Value font = fonts[i];
@@ -93,6 +128,7 @@ namespace HUD {
 				mFontManager->addFont(name.data(), path.data(), weight.data(), isDefault);
 			}
 		}
+		
 		condSignal();
 		return DR_OK;
 	}
@@ -125,10 +161,11 @@ namespace HUD {
 
 			if (!mFont) {
 				// test
-				mFont = new DRFont(mFontManager, "data/font/MandroidBB.ttf");
+				//mFont = new DRFont(mFontManager, "data/font/MandroidBB.ttf");
 				//mFont = new DRFont(mFontManager, "data/font/neuropol_x_rg.ttf");
-				//mFont = new DRFont(mFontManager, "data/font/arial.ttf");
-				mFont->loadGlyph(L'q');
+				mFont = new DRFont(mFontManager, "data/font/arial.ttf");
+				mFont->loadGlyph(L'!');
+				//mFont->loadGlyph(-61 | (-92 << 8));
 			}
 
 
