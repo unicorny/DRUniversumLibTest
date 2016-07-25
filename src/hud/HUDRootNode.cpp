@@ -24,10 +24,10 @@ namespace HUD {
 		mMaterial->bind();
 		if (mParent->getTextFont() && mParent->getTextFont()->isGeometrieReady()) mParent->getTextFont()->setStaticGeometrie();
 		//mParent->getTextFont()->bind();
-		UniLib::view::Geometrie*geo = controller::BaseGeometrieManager::getInstance()->getGeometrie(controller::BASE_GEOMETRIE_PLANE);
+		/*UniLib::view::Geometrie*geo = controller::BaseGeometrieManager::getInstance()->getGeometrie(controller::BASE_GEOMETRIE_PLANE);
 		if (geo->isReady()) {
 			geo->render();
-		}
+		}*/
 
 		return DR_OK;
 	}
@@ -164,7 +164,7 @@ namespace HUD {
 				//mFont = new DRFont(mFontManager, "data/font/MandroidBB.ttf");
 				//mFont = new DRFont(mFontManager, "data/font/neuropol_x_rg.ttf");
 				mFont = new DRFont(mFontManager, "data/font/arial.ttf");
-				mFont->loadGlyph(L'!');
+				mFont->loadGlyph(L'Ö');
 				//mFont->loadGlyph(-61 | (-92 << 8));
 			}
 
@@ -173,9 +173,9 @@ namespace HUD {
 			if (!mRenderCall) {
 				if (mRendererCasted->isTaskFinished()) {
 					//tm->setTexture(mRendererCasted->getTexture());
-					if (mFont && mFont->getTexture().getResourcePtrHolder()) {
-						tm->setTexture(mFont->getTexture());
-					}
+//					if (mFont && mFont->getTexture().getResourcePtrHolder()) {
+	//					tm->setTexture(mFont->getTexture());
+		//			}
 					mRenderCall = new RootNodeRenderCall(this, m);
 					controller::GPUScheduler::getInstance()->registerGPURenderCommand(mRenderCall, controller::GPU_SCHEDULER_COMMAND_AFTER_RENDERING);
 				}

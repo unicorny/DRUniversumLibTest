@@ -2,6 +2,7 @@
 #define __MICRO_SPACECRAFT_HUD_FONT_MANAGER_H
 
 #include "lib/MultithreadMap.h"
+#include "controller/Command.h"
 #include "MicroSpacecraft.h"
 
 #include "ft2build.h"
@@ -28,6 +29,10 @@ public:
 	}
 	DRReturn addFont(const char* fontName, const char* fontPath, const char* weight = "normal", bool isDefault = false);
 
+	//! \brief calculate conic splines for vector based font rendering
+	//! \param finishCommand will called, after all fonts have finished loading
+	void calculateFonts(UniLib::controller::Command* finishCommand = NULL);
+
 	__inline__ DRFont* getFont(const char* fontName, FontWeights weight = FONT_WEIGHT_NORMAL) { return getFont(DRMakeDoubleHash(getFontWeight(weight), fontName)); }
 	__inline__ DRFont* getFont(DHASH id) {
 		return mFonts.s_find(id);
@@ -45,6 +50,9 @@ protected:
 	DHASH mDefaultFontHash;
 	int mGlyphCount;
 	u32* mGlyphMap;
+
+	int returnedFontLoadings;
+	UniLib::controller::Command* mFontCalculatingFinishCommand;
 };
 
 

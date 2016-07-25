@@ -15,6 +15,7 @@ namespace UniLib {
 
 extern SDL_Window* g_pSDLWindow;
 extern UniLib::controller::InputCamera* gInputCamera;
+extern UniLib::controller::CPUSheduler* gCPUScheduler;
 extern DRVector2i  g_v2WindowLength;
 extern World* gWorld;
 

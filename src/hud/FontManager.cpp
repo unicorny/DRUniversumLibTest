@@ -5,7 +5,8 @@ using namespace UniLib;
 
 //********************************************************************
 FontManager::FontManager()
-	: mFreeTypeLibrayHandle(NULL), mDefaultFontHash(0), mGlyphCount(0), mGlyphMap(NULL)
+	: mFreeTypeLibrayHandle(NULL), mDefaultFontHash(0), mGlyphCount(0), mGlyphMap(NULL),
+	  returnedFontLoadings(0), mFontCalculatingFinishCommand(NULL)
 {
 	FT_Error error = FT_Init_FreeType(&mFreeTypeLibrayHandle);
 	if (error)
@@ -19,12 +20,29 @@ FontManager::~FontManager()
 {
 	mFonts.s_clear();
 	FT_Done_FreeType(mFreeTypeLibrayHandle);
+	DR_SAVE_DELETE_ARRAY(mGlyphMap);
+	mGlyphCount = 0;
 }
 
 DRReturn FontManager::addFont(const char* fontName, const char* fontPath, const char* weight /* = "normal"*/, bool isDefault /*= false*/)
 {
 	DHASH id = DRMakeDoubleHash(weight, fontName);
-	DRFont* font = new DRFont(this, fontPath);
+
+	// load font file into memory
+	DRFile file(fontPath, "rb");
+	if (!file.isOpen()) {
+		EngineLog.writeToLog("file: %s for font: %s couldn't be opened", fontName, fontPath);
+		LOG_ERROR("Error by opening file", DR_ERROR);
+	}
+	u32 size = file.getSize();
+	u8* data = (u8*)new u8[size + 1];
+	memset(data, 0, size + 1);
+	if (file.read(data, size, 1)) {
+		LOG_ERROR("Error by reading file", DR_ERROR);
+	}
+	file.close();
+
+	DRFont* font = new DRFont(this, data, size);
 	DRFont* dublette = NULL;
 	if (mFonts.s_add(id, font, &dublette)) {
 		EngineLog.writeToLog("Hash Collision with font: %s", fontName);
@@ -35,6 +53,12 @@ DRReturn FontManager::addFont(const char* fontName, const char* fontPath, const 
 
 	return DR_OK;
 }
+
+void FontManager::calculateFonts(UniLib::controller::Command* finishCommand/* = NULL*/)
+{
+	mFontCalculatingFinishCommand = finishCommand;
+}
+
 
 void FontManager::setGlyphMap(std::queue<u32>& glyph)
 {
