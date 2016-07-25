@@ -45,7 +45,13 @@ void BezierCurvesContainer::addCurve(DRBezierCurve* b, bool conturStartCurve/* =
 
 void BezierCurvesContainer::scale(DRVector2 scaleFaktor) {
 	for (int i = 0; i < mPointCount; i++) {
-		mPoints[i] *= scaleFaktor;
+		mPoints[i] /= scaleFaktor;
+	}
+}
+void BezierCurvesContainer::scale(double singleScale)
+{
+	for (int i = 0; i < mPointCount; i++) {
+		mPoints[i] *= singleScale;
 	}
 }
 
@@ -62,6 +68,14 @@ void BezierCurvesContainer::print()
 	printf("\n");
 }
 
+DRBoundingBox BezierCurvesContainer::getBoundingBoxForBezier()
+{
+	DRBoundingBox bb;
+	for (int i = 0; i < mIndiceCount; i++) {
+		bb.expandBy(getBoundingBoxForBezier(mIndices[i]));
+	}
+	return bb;
+}
 DRBoundingBox BezierCurvesContainer::getBoundingBoxForBezier(int index) {
 	DRVector2 minV(100.0f);
 	DRVector2 maxV(0.0f);

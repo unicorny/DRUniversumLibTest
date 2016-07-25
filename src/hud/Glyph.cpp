@@ -38,7 +38,9 @@ DRReturn GlyphGrid::fillGrid(BezierCurvesContainer* bezierCurves)
 		//printf("(%d) min: %d, %d, max: %d, %d\n", i, gridIndexMin.x, gridIndexMin.y, gridIndexMax.x, gridIndexMax.y);
 		for (int iy = gridIndexMin.y; iy <= gridIndexMax.y; iy++) {
 			for (int ix = gridIndexMin.x; ix <= gridIndexMax.x; ix++) {
-				mGridNodes[iy*mGridSize + ix].addIndex(i);
+				int index = iy*mGridSize + ix;
+				assert(index < mGridSize*mGridSize);
+				mGridNodes[index].addIndex(i);
 			}
 		}
 	}
@@ -92,7 +94,7 @@ DRReturn Glyph::calculateShortBezierCurves(BezierCurveList* bezierCurveLists, in
 			countBezierPoints += (*it)->getNodeCount() - 1;
 		}
 	}
-
+	// change value order 
 	mFinalBezierCurves.init(countIndices, countBezierPoints);
 	int bezierCount = 0;
 
@@ -101,9 +103,17 @@ DRReturn Glyph::calculateShortBezierCurves(BezierCurveList* bezierCurveLists, in
 			mFinalBezierCurves.addCurve(*it, it == bezierCurveLists[iContur].begin());
 		}
 	}
-	
+	// scale to [0,1],[0,1]
+	// calculate sum bounding box for final bezier curves
+	DRBoundingBox boundingBox = mFinalBezierCurves.getBoundingBoxForBezier();
+	DRVector2 scaleVector = boundingBox.getMax() - boundingBox.getMin();
+	float scaleF = max(scaleVector.x,scaleVector.y)*1.1f;
+	float scaleInteger = 0;
+	modf(scaleF, &scaleInteger);
+	mFinalBezierCurves.scale(DRVector2(scaleInteger));
 
-	//mGlyphGrid.fillGrid(&mFinalBezierCurves);
+	// set up grid
+	mGlyphGrid.fillGrid(&mFinalBezierCurves);
 	Uint32 endTicks = SDL_GetTicks();
 	printf("[Glyph::calculateShortBezierCurves] %d ms\n", endTicks - startTicks);
 

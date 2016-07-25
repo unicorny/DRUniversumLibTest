@@ -26,6 +26,7 @@ protected:
 			float ix = 0, iy = 0;
 			modf(v.x / stepSize, &ix);
 			modf(v.y / stepSize, &iy);
+			assert(ix < 8 && iy < 8);
 			return DRVector2i(ix, iy);
 		}
 	};
@@ -41,7 +42,6 @@ public:
 	~Glyph();
 
 	DRReturn calculateShortBezierCurves(BezierCurveList* bezierCurveLists, int bezierCurveListsCount);
-	__inline__ void scale(DRVector2 scaleFaktor) { mFinalBezierCurves.scale(scaleFaktor); }
 
 	__inline__ const BezierCurvesContainer* getFinalBezierCurves() const { return &mFinalBezierCurves; }
 

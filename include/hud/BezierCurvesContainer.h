@@ -12,8 +12,10 @@ public:
 	void init(u16 _indiceCount, u16 _pointCount);
 	void addCurve(DRBezierCurve* b, bool conturStartCurve = false);
 	void scale(DRVector2 scaleFaktor);
+	void scale(double singleScale);
 	void print();
 
+	DRBoundingBox getBoundingBoxForBezier();
 	DRBoundingBox getBoundingBoxForBezier(int index);
 
 	// getter and setter

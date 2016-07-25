@@ -183,7 +183,7 @@ void DRFont::loadGlyph(FT_ULong c)
 		
 		printf("[DRFont::loadGlyph] fill glyph structure: %d ms\n", SDL_GetTicks() - startTicks);
 		
-		float scaleF = max(1.0f / (boundingBox.xMax - boundingBox.xMin), 1.0f / (boundingBox.yMax - boundingBox.yMin));
+		
 		//DRVector2 scaleFaktor(1.0f/(boundingBox.xMax - boundingBox.xMin), 1.0f/(boundingBox.yMax - boundingBox.yMin));
 	
 
@@ -191,22 +191,11 @@ void DRFont::loadGlyph(FT_ULong c)
 		startTicks = SDL_GetTicks();
 
 		
-		mGlyph.scale(DRVector2(scaleF));
+		//mGlyph.scale(DRVector2(scaleF));
 		printf("[DRFont::loadGlyph] fill final: %d ms\n", SDL_GetTicks() - startTicks);
 		startTicks = SDL_GetTicks();
 		
-		
 		// clean up
-		// bezier curves
-		/*for (int iContur = 0; iContur < conturCount; iContur++) {
-			for (BezierCurveList::iterator it = mBezierKurves[iContur].begin(); it != mBezierKurves[iContur].end(); it++) {
-				DR_SAVE_DELETE(*it);
-			}
-			mBezierKurves[iContur].clear();
-		}
-		DR_SAVE_DELETE_ARRAY(mBezierKurves);
-		// grid
-		*/
 		for (int i = 0; i < conturCount; i++) {
 			for (BezierCurveList::iterator it = mBezierKurves[i].begin(); it != mBezierKurves[i].end(); it++) {
 				DR_SAVE_DELETE(*it);
