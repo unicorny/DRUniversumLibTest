@@ -10,6 +10,7 @@
 #include "controller/ShaderManager.h"
 #include "Material.h"
 #include "hud/FontManager.h"
+#include "hud/TextGeom.h"
 
 using namespace UniLib;
 
@@ -22,7 +23,7 @@ namespace HUD {
 	{
 		assert(mMaterial.getResourcePtrHolder());
 		mMaterial->bind();
-		if (mParent->getTextFont() && mParent->getTextFont()->isGeometrieReady()) mParent->getTextFont()->setStaticGeometrie();
+		if (mParent->getTextFont() && mParent->getTextGeom()->isGeometrieReady()) mParent->getTextGeom()->setStaticGeometrie();
 		//mParent->getTextFont()->bind();
 		/*UniLib::view::Geometrie*geo = controller::BaseGeometrieManager::getInstance()->getGeometrie(controller::BASE_GEOMETRIE_PLANE);
 		if (geo->isReady()) {
@@ -165,6 +166,11 @@ namespace HUD {
 				//mFont = new DRFont(mFontManager, "data/font/neuropol_x_rg.ttf");
 				mFont = new DRFont(mFontManager, "data/font/arial.ttf");
 				mFont->loadGlyph(L'Ö');
+
+				// create geom
+				mTextGeom = new TextGeom;
+				mTextGeom->init();
+				mTextGeom->buildGeom(mFont->getGlyph());
 				//mFont->loadGlyph(-61 | (-92 << 8));
 			}
 

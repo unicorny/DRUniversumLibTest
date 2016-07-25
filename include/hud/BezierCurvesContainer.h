@@ -17,8 +17,10 @@ public:
 	DRBoundingBox getBoundingBoxForBezier(int index);
 
 	// getter and setter
-	__inline__ u16 getIndexCount() { return mIndiceCount; }
-	__inline__ u16 getPointCount() { return mPointCount; }
+	__inline__ u16 getIndexCount() const { return mIndiceCount; }
+	__inline__ u16 getPointCount() const { return mPointCount; }
+	DRVector2& operator[](u16 index) { assert(index < mPointCount); return mPoints[index]; }
+	DRVector2 operator[](u16 index) const { assert(index < mPointCount); return mPoints[index]; }
 
 protected:
 	DRVector2*	mPoints;

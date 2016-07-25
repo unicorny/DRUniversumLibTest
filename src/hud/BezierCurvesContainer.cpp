@@ -1,13 +1,5 @@
 #include "hud/BezierCurvesContainer.h"
 
-/*
-DRVector2*	mPoints;
-u16			mPointCount;
-u16*		mIndices;
-u16			mIndiceCount;
-u16			mCursor;
-u16			mIndiceCursor;
-*/
 
 BezierCurvesContainer::BezierCurvesContainer() :
 	mPoints(NULL), mPointCount(0), mIndices(NULL), mIndiceCount(0),

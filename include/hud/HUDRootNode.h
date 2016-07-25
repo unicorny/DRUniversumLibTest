@@ -15,6 +15,8 @@ namespace UniLib {
 	}
 }
 
+class TextGeom;
+
 namespace HUD {
 
 	class ContainerNode;
@@ -51,6 +53,7 @@ namespace HUD {
 
 		__inline__ FontManager* getFontManager() { return mFontManager; }
 		__inline__ DRFont* getTextFont() { return mFont; }
+		__inline__ TextGeom* getTextGeom() { return mTextGeom; }
 
 		DRReturn loadFromConfig(std::string jsonfConfigString);
 
@@ -77,6 +80,7 @@ namespace HUD {
 		// for testing
 		FontManager* mFontManager;
 		DRFont* mFont;
+		TextGeom* mTextGeom;
 
 	};
 

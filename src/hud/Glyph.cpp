@@ -1,6 +1,11 @@
 #include "HUD/Glyph.h"
 #include "HUD/BezierCurvesContainer.h"
 
+
+// ***********************************************************************************
+// Glyph Grid
+// ***********************************************************************************
+
 GlyphGrid::GlyphGrid(u8 gridSize)
 	: mGridNodes(new GridNode[gridSize*gridSize]), mGridSize(gridSize)
 {
@@ -42,58 +47,66 @@ DRReturn GlyphGrid::fillGrid(BezierCurvesContainer* bezierCurves)
 	return DR_OK;
 }
 
-// ------------------------------------------------------------------------------
-
-Glyph::Glyph()
-	: mBezierCurveLists(NULL), mBezierCurveListsCount(0), mGlyphGrid(0)
-{
-}
+// ***********************************************************************************
+// Glyph 
+// ***********************************************************************************
 
 Glyph::~Glyph()
 {
-	for (int i = 0; i < mBezierCurveListsCount; i++) {
-		for (BezierCurveList::iterator it = mBezierCurveLists[i].begin(); it != mBezierCurveLists[i].end(); it++) {
-			DR_SAVE_DELETE(*it);
-		}
-		mBezierCurveLists[i].clear();
-	}
-	DR_SAVE_DELETE_ARRAY(mBezierCurveLists);
-	mBezierCurveListsCount = 0;
+	
 }
 
-Glyph::Glyph(BezierCurveList* bezierCurveLists, int bezierCurveListsCount)
-	: mBezierCurveLists(bezierCurveLists), mBezierCurveListsCount(bezierCurveListsCount),
-	  mGlyphGrid(GLYPHE_GRID_SIZE)
+Glyph::Glyph()
+	: mGlyphGrid(GLYPHE_GRID_SIZE)
 
 {
 
 }
 
-DRReturn Glyph::calculateShortBezierCurves()
+DRReturn Glyph::calculateShortBezierCurves(BezierCurveList* bezierCurveLists, int bezierCurveListsCount)
 {
 	Uint32 startTicks = SDL_GetTicks();
-	for (int iContur = 0; iContur < mBezierCurveListsCount; iContur++) {
+	// calculate conic bezier curves
+	for (int iContur = 0; iContur < bezierCurveListsCount; iContur++) {
 		bool reduktionCalled = true;
 		while (reduktionCalled) {
 			reduktionCalled = false;
-			for (BezierCurveList::iterator it = mBezierCurveLists[iContur].begin(); it != mBezierCurveLists[iContur].end(); it++) {
+			for (BezierCurveList::iterator it = bezierCurveLists[iContur].begin(); it != bezierCurveLists[iContur].end(); it++) {
 				if ((*it)->getNodeCount() > 3) {
 					reduktionCalled = true;
 					DRBezierCurve* bez = (*it)->gradreduktionAndSplit();
 					if (bez) {
-						it = mBezierCurveLists[iContur].insert(++it, bez);
+						it = bezierCurveLists[iContur].insert(++it, bez);
 						//it++;
 					}
 				}
 			}
 		}
 	}
+	// count bezier points
+	u16 countBezierPoints = bezierCurveListsCount;
+	u16 countIndices = 0;
+	for (int iContur = 0; iContur < bezierCurveListsCount; iContur++) {
+		countIndices += bezierCurveLists[iContur].size();
+		for (BezierCurveList::iterator it = bezierCurveLists[iContur].begin(); it != bezierCurveLists[iContur].end(); it++) {
+			countBezierPoints += (*it)->getNodeCount() - 1;
+		}
+	}
+
+	mFinalBezierCurves.init(countIndices, countBezierPoints);
+	int bezierCount = 0;
+
+	for (int iContur = 0; iContur < bezierCurveListsCount; iContur++) {
+		for (BezierCurveList::iterator it = bezierCurveLists[iContur].begin(); it != bezierCurveLists[iContur].end(); it++) {
+			mFinalBezierCurves.addCurve(*it, it == bezierCurveLists[iContur].begin());
+		}
+	}
+	
+
+	//mGlyphGrid.fillGrid(&mFinalBezierCurves);
 	Uint32 endTicks = SDL_GetTicks();
 	printf("[Glyph::calculateShortBezierCurves] %d ms\n", endTicks - startTicks);
 
 	return DR_OK;
 }
-DRReturn Glyph::calculateGrid(BezierCurvesContainer* bezierCurves)
-{
-	return mGlyphGrid.fillGrid(bezierCurves);
-}
+

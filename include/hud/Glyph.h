@@ -2,12 +2,11 @@
 #define __DR_MICRO_SPACECRAFT_GLYPH_H
 
 #include "UniversumLib.h"
-
+#include "BezierCurvesContainer.h"
 
 typedef std::list<DRBezierCurve*> BezierCurveList;
 #define GLYPHE_GRID_SIZE 8
 
-class BezierCurvesContainer;
 
 class GlyphGrid
 {
@@ -39,16 +38,17 @@ class Glyph
 {
 public:
 	Glyph();
-	Glyph(BezierCurveList* bezierCurveLists, int bezierCurveListsCount);
 	~Glyph();
 
-	DRReturn calculateShortBezierCurves();
-	DRReturn calculateGrid(BezierCurvesContainer* bezierCurves);
+	DRReturn calculateShortBezierCurves(BezierCurveList* bezierCurveLists, int bezierCurveListsCount);
+	__inline__ void scale(DRVector2 scaleFaktor) { mFinalBezierCurves.scale(scaleFaktor); }
+
+	__inline__ const BezierCurvesContainer* getFinalBezierCurves() const { return &mFinalBezierCurves; }
 
 protected:
-	BezierCurveList* mBezierCurveLists;
-	int				 mBezierCurveListsCount;
+
 	GlyphGrid	     mGlyphGrid;
+	BezierCurvesContainer mFinalBezierCurves;
 };
 
 

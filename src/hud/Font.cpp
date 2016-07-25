@@ -1,22 +1,11 @@
 #include "hud/Font.h"
 #include "hud/FontManager.h"
-#include "Texture.h"
 
-#include "view/VisibleNode.h"
-#include "view/Texture.h"
-#include "controller/ShaderManager.h"
-#include "controller/TextureManager.h"
-#include "controller/Command.h"
-#include "Material.h"
-#include "Geometrie.h"
-#include "model/geometrie/BaseGeometrie.h"
-#include "model/geometrie/Plane.h"
 
 using namespace UniLib;
 
 DRFont::DRFont(FontManager* fm, u8* data, u32 dataSize)
-	: mFontFace(NULL), mBezierKurves(NULL), mGeometrieReady(false), mGeometrie(NULL), mBaseGeo(NULL),
-	mEnableGeometrie(false), mFontFileMemory(data), mFontFileMemorySize(dataSize)
+	: mFontFace(NULL), mFontFileMemory(data), mFontFileMemorySize(dataSize)
 {
 	/*
 	loading from memory:
@@ -46,8 +35,7 @@ DRFont::DRFont(FontManager* fm, u8* data, u32 dataSize)
 }
 
 DRFont::DRFont(FontManager* fm, const char* filename)
-	: mFontFace(NULL), mBezierKurves(NULL), mGeometrieReady(false), mGeometrie(NULL), mBaseGeo(NULL),
-	mEnableGeometrie(true), mFontFileMemory(NULL), mFontFileMemorySize(0)
+	: mFontFace(NULL), mFontFileMemory(NULL), mFontFileMemorySize(0)
 {
 	FT_Error error = FT_New_Face(*fm->getLib(), filename, 0, &mFontFace);
 	if (error == FT_Err_Unknown_File_Format)
@@ -66,12 +54,9 @@ DRFont::DRFont(FontManager* fm, const char* filename)
 
 DRFont::~DRFont()
 {
-	DR_SAVE_DELETE_ARRAY(mBezierKurves);
 	FT_Done_Face(mFontFace);
 	DR_SAVE_DELETE_ARRAY(mFontFileMemory);
 	mFontFileMemorySize = 0;
-	//DR_SAVE_DELETE(mGeometrie);
-	
 }
 
 
@@ -81,25 +66,7 @@ void DRFont::loadGlyph(FT_ULong c)
 	Uint32 gStartTicks = SDL_GetTicks();
 	//EngineLog.writeAsBinary("load glyph ", c);
 	//	EngineLog.writeToLog("glyph as number: %d", c);
-	if (!mGeometrie && mEnableGeometrie) {
-		mGeometrie = new view::VisibleNode;
-		view::MaterialPtr materialPtr = view::MaterialPtr(new Material);
-		materialPtr->setShaderProgram(controller::ShaderManager::getInstance()->getShaderProgram("showFont.vert", "showFont.frag"));
-		mGeometrie->setMaterial(materialPtr);
-
-		mBaseGeo = new model::geometrie::BaseGeometrie;
-//		mBaseGeo = new model::geometrie::Plane(model::geometrie::GEOMETRIE_VERTICES);
-		Geometrie* geo = new Geometrie(mBaseGeo);
-		geo->setRenderMode(GL_LINE_STRIP);
-		view::GeometriePtr ptr(geo);
-		mGeometrie->setGeometrie(ptr);
-		model::Position* pos = mGeometrie->getPosition();
-		pos->setScale(DRVector3(0.10f));
-		pos->setPosition(DRVector3(-200.0f, -400.0f, -800.0f));
-
-		printf("[DRFont::loadGlyph] create geom: %d ms\n", SDL_GetTicks() - startTicks);
-		startTicks = SDL_GetTicks();
-	}
+	
 	
 	FT_UInt glyph_index = getGlyphIndex(c);
 	FT_Error error = FT_Set_Pixel_Sizes(
@@ -166,11 +133,6 @@ void DRFont::loadGlyph(FT_ULong c)
 			minY = min(minY, p.y);
 		}
 
-		//DRVector2i textureSize(pow(2, ceil(log2(boundingBox.xMax-boundingBox.xMin))), pow(2, ceil(log2(boundingBox.yMax-boundingBox.yMin))));
-		//GLenum format = GL_RGBA;
-		//mTexture = controller::TextureManager::getInstance()->getEmptyTexture(textureSize, GL_RGBA);
-		//u8* pixels = new u8[textureSize.x*textureSize.y * 4];
-		//memset(pixels, 0, sizeof(u8)*textureSize.x*textureSize.y * 4);
 		mBezierKurves = new std::list<DRBezierCurve*>[conturCount];
 		for (short contur = 0; contur < conturCount; contur++) {
 			short start = 0;
@@ -218,60 +180,22 @@ void DRFont::loadGlyph(FT_ULong c)
 
 			addPointToBezier(DRVector2i(firstPoint.x-boundingBox.xMin, firstPoint.y-boundingBox.yMin), contur, true);
 		}
-		Glyph glyph(mBezierKurves, conturCount);
+		
 		printf("[DRFont::loadGlyph] fill glyph structure: %d ms\n", SDL_GetTicks() - startTicks);
 		
-		
-		DRVector2 scaleFaktor(1.0f/(boundingBox.xMax - boundingBox.xMin), 1.0f/(boundingBox.yMax - boundingBox.yMin));
+		float scaleF = max(1.0f / (boundingBox.xMax - boundingBox.xMin), 1.0f / (boundingBox.yMax - boundingBox.yMin));
+		//DRVector2 scaleFaktor(1.0f/(boundingBox.xMax - boundingBox.xMin), 1.0f/(boundingBox.yMax - boundingBox.yMin));
+	
 
-		glyph.calculateShortBezierCurves();
+		mGlyph.calculateShortBezierCurves(mBezierKurves, conturCount);
 		startTicks = SDL_GetTicks();
 
-		u16 countBezierPoints = conturCount;
-		u16 countIndices = 0;
-		for (int iContur = 0; iContur < conturCount; iContur++) {
-			countIndices += mBezierKurves[iContur].size();
-			for (BezierCurveList::iterator it = mBezierKurves[iContur].begin(); it != mBezierKurves[iContur].end(); it++) {
-				countBezierPoints += (*it)->getNodeCount() - 1;
-			}
-		}
-
-		mFinalBezierCurves.init(countIndices, countBezierPoints);
-		int bezierCount = 0;
-		for (int iContur = 0; iContur < conturCount; iContur++) {
-//			printf("iContur: %d\n", iContur);
-			for (BezierCurveList::iterator it = mBezierKurves[iContur].begin(); it != mBezierKurves[iContur].end(); it++) {
-				//printf("point count: %d\n", it->pointCount);
-				//it->plot(pixels, textureSize);
-				if (mEnableGeometrie) {
-					for (int i = 0; i < (*it)->getNodeCount(); i++) {
-						addVertex((*it)->getNodes()[i]);
-					}
-				}
-				//printf("bezier: (%d): %s\n", bezierCount+=it->pointCount-1, it->getAsString().data());
-				mFinalBezierCurves.addCurve(*it, it == mBezierKurves[iContur].begin());
-			}
-			
-		}
-		mFinalBezierCurves.scale(scaleFaktor);
+		
+		mGlyph.scale(DRVector2(scaleF));
 		printf("[DRFont::loadGlyph] fill final: %d ms\n", SDL_GetTicks() - startTicks);
 		startTicks = SDL_GetTicks();
-		//mFinalBezierCurves.print();
-		
-		//mFinalCurvePointCount = mBezierKurves.size() * 2 + 1;
 		
 		
-		//printBeziers();
-		
-		//mTexture->loadFromMemory(pixels);
-		
-		/*glTexImage2D(GL_TEXTURE_2D, 0, 4, textureSize.x, textureSize.y, 0,
-			format, GL_UNSIGNED_BYTE, pixels);*/
-		glyph.calculateGrid(&mFinalBezierCurves);
-		
-		printf("[DRFont::loadGlyph] calculate grid: %d ms\n", SDL_GetTicks() - startTicks);
-		startTicks = SDL_GetTicks();
-		//mTexture->saveIntoFile("testFont.jpg", pixels);
 		// clean up
 		// bezier curves
 		/*for (int iContur = 0; iContur < conturCount; iContur++) {
@@ -283,50 +207,21 @@ void DRFont::loadGlyph(FT_ULong c)
 		DR_SAVE_DELETE_ARRAY(mBezierKurves);
 		// grid
 		*/
+		for (int i = 0; i < conturCount; i++) {
+			for (BezierCurveList::iterator it = mBezierKurves[i].begin(); it != mBezierKurves[i].end(); it++) {
+				DR_SAVE_DELETE(*it);
+			}
+			mBezierKurves[i].clear();
+		}
+		DR_SAVE_DELETE_ARRAY(mBezierKurves);
+		
 		mBezierKurves = NULL;
-		printf("[DRFont::loadGlyph] total time: %d ms\n", SDL_GetTicks() - gStartTicks);
+		
 	}
 		
-	/*FT_Error error = FT_Load_Glyph(
-		mFontFace,          // handle to face object 
-		glyph_index,   // glyph index           
-		FT_LOAD_NO_BITMAP);*/
-	if (mEnableGeometrie) {
-		mBaseGeo->copyToFastAccess();
-		mGeoReadyMutex.lock();
-		mGeometrieReady = true;
-		mGeoReadyMutex.unlock();
-	}
-	//gWorld->addStaticGeometrie(mGeometrie);
+	printf("[DRFont::loadGlyph] total time: %d ms\n", SDL_GetTicks() - gStartTicks);
 }
 
-void DRFont::setStaticGeometrie() 
-{
-	if (mEnableGeometrie) {
-		mGeoReadyMutex.lock();
-		gWorld->addStaticGeometrie(mGeometrie);
-		LOG_INFO("add font geo to world");
-		mGeometrieReady = false;
-		mGeoReadyMutex.unlock();
-	}
-}
-bool DRFont::isGeometrieReady() 
-{ 
-	if (mEnableGeometrie) {
-		bool b = false;
-		mGeoReadyMutex.lock();
-		b = mGeometrieReady;
-		mGeoReadyMutex.unlock();
-		return b;
-	}
-	return false;
-}
-
-void DRFont::addVertex(DRVector2 vertex)
-{
-	mBaseGeo->addVector(DRVector3(vertex.x, vertex.y, 0.0f), model::geometrie::GEOMETRIE_VERTICES);
-	mBaseGeo->addIndice(mBaseGeo->getIndexCountFromVector());
-}
 
 void DRFont::addPointToBezier(DRVector2i p, int conturIndex, bool onCurve /*= true*/)
 {
@@ -355,73 +250,5 @@ void DRFont::printBeziers(int iContur)
 		count++;
 	}
 }
-/*
-void DRFont::Bezier::plot(u8* pixels, DRVector2i textureSize) {
-	Uint32 startTicks = SDL_GetTicks();
-	
-	// calculate step size
-	DRVector2 straight = points[pointCount-1] - points[0];
-	int length = round(straight.length())/2;
-	//printf("[Bezier::plot] length: %d, pointCount: %d\n", length, pointCount);
-	plotPoint(pixels, textureSize, points[0], DRColor(1.0f));
-	//de_casteljau();
-	for (int iStep = 1; iStep < length; iStep++) {
-		float t = (float)iStep / (float)length;
-		//printf("[Bezier::plot] t(%d): %f\n", iStep, t);
-		plotPoint(pixels, textureSize, calculatePointOnBezierRecursive(points, pointCount, t), DRColor(0.0f, 1.0f, 0.0f));
-	}
-	plotPoint(pixels, textureSize, points[pointCount-1], DRColor(1.0f));
-	//printf("[DRFont::Bezier::plot] used %d ms for plotting one bezier curve\n",
-		//SDL_GetTicks() - startTicks);
-}
-
-
-void DRFont::Bezier::plotPoint(u8* pixels, DRVector2i textureSize, DRVector2 pos, DRColor color)
-{
-//	printf("[Font::Bezier::plotPoint] pos: %f, %f, textureSize: %d, %d\n", 
-	//	pos.x, pos.y, textureSize.x, textureSize.y);
-	pos.y = textureSize.y - pos.y;
-	int index[4];
-	float alpha[4];
-	int floorX = floor(pos.x);
-	float distXFloor = pos.x - floorX;
-	int floorY = floor(pos.y);
-	while (floorY >= textureSize.y) floorY--;
-	float distYFloor = pos.y - floorY;
-	int ceilX = ceil(pos.x);
-	float distXCeil = ceilX - pos.x;
-	int ceilY = ceil(pos.y);
-	while (ceilY >= textureSize.y) ceilY--;
-	float distYCeil = ceilY - pos.y;
-
-	//printf("floorX: %d, ceilX: %d, floorY: %d, ceilY: %d\n", 
-		//floorX, ceilX, floorY, ceilY);
-
-	index[0] = floorX + floorY * textureSize.x;
-	alpha[0] = min(1.0f, sqrtf(distXFloor*distXFloor + distYFloor*distYFloor));
-	index[1] = floorX + ceilY  * textureSize.x;
-	alpha[1] = min(1.0f, sqrtf(distXFloor*distXFloor + distYCeil*distYCeil));
-	index[2] = ceilX + ceilY  * textureSize.x;
-	alpha[2] = min(1.0f, sqrtf(distXCeil*distXCeil + distYCeil*distYCeil));
-	index[3] = ceilX + floorY * textureSize.x;
-	alpha[3] = min(1.0f, sqrtf(distXCeil*distXCeil + distYFloor*distYFloor));
-	
-	u32* p = (u32*)pixels;
-	// special 
-	if (floorX == ceilX && floorY == ceilY) {
-		p[index[0]] = color;
-		//printf("index: %d, color: %f, %f, %f, %f\n",
-			//index[0], color.r, color.g, color.b, color.a);
-	}
-	else {
-		for (int i = 0; i < 4; i++) {
-			//printf("(%d), index: %d, alpha: %f\n", i, index[i], alpha[i]);
-			DRColor colorWithAlpha = color;
-			colorWithAlpha.a = alpha[i];
-			p[index[i]] = colorWithAlpha;
-		}
-	}
-}
-*/
 
 
