@@ -14,15 +14,21 @@ enum FontWeights {
 	FONT_WEIGHT_ITALIC
 };
 
+namespace UniLib {
+	namespace controller {
+		class CPUSheduler;
+	}
+};
 
 class DRFont;
 class FontManager
 {
 public:
-	FontManager();
+	//! \brief
+	//! \param loadingThread thread for loading fonts, if null given, create own scheduler
+	FontManager(UniLib::controller::CPUSheduler* loadingThread = NULL);
 	~FontManager();
 
-	__inline__ FT_Library* getLib() { return &mFreeTypeLibrayHandle; }
 
 	__inline__ DRReturn addFont(const char* fontName, const char* fontPath, FontWeights weight = FONT_WEIGHT_NORMAL, bool isDefault = false){
 		return addFont(fontName, fontPath, getFontWeight(weight), isDefault);
@@ -38,14 +44,19 @@ public:
 		return mFonts.s_find(id);
 	}
 	__inline__ DRFont* getDefaultFont() { return getFont(mDefaultFontHash); }
+	__inline__ UniLib::controller::CPUSheduler* getLoadingScheduler() { return mLoadingScheduler; }
+	__inline__ const u32* getGlyphMap(int* mGlypCount) const { *mGlypCount = mGlyphCount; return mGlyphMap; }
 
 	static FontWeights getFontWeight(const char* fontWeight);
 	static const char* getFontWeight(FontWeights fontWeights);
 
 	void setGlyphMap(std::queue<u32>& glyph);
 protected:
-	FT_Library mFreeTypeLibrayHandle;
 	typedef UniLib::lib::MultithreadMap<DHASH, DRFont*> FontMap;
+
+	UniLib::controller::CPUSheduler* mLoadingScheduler;
+	// set to true if we have created ore own cpu scheduler
+	bool							 mCreatedByMySelf;
 	FontMap mFonts;
 	DHASH mDefaultFontHash;
 	int mGlyphCount;

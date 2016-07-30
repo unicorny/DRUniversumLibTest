@@ -4,92 +4,104 @@
 
 using namespace UniLib;
 
-DRFont::DRFont(FontManager* fm, u8* data, u32 dataSize)
-	: mFontFace(NULL), mFontFileMemory(data), mFontFileMemorySize(dataSize)
+DRFont::DRFont(FontManager* fm, u8* data, u32 dataSize, const char* fontName)
+	: mParent(fm), mFontName(fontName), mFontFileMemory(data), mFontFileMemorySize(dataSize)
 {
-	/*
-	loading from memory:
-
-	error = FT_New_Memory_Face( library,	buffer,    // first byte in memory
-	size,      // size in bytes
-	0,         // face_index
-	&face );
-	if (error) { ... }
-
-	As you can see, FT_New_Memory_Face takes a pointer to the font file buffer and its size in bytes instead of a file pathname. Other than that, it has exactly the same semantics as FT_New_Face.
-
-	Note that you must not deallocate the memory before calling FT_Done_Face.
-	*/
-	FT_Error error = FT_New_Memory_Face(*fm->getLib(), data, dataSize, 0, &mFontFace);
-	if (error == FT_Err_Unknown_File_Format)
-	{
-		LOG_ERROR_VOID("Font format unsupported");
-	}
-	else if (error)
-	{
-		EngineLog.writeToLog("error: %d by reading font from memory", error);
-		LOG_ERROR_VOID("Font memory couldn't read");
-	}
-	EngineLog.writeToLog("font face count: %d", mFontFace->num_faces);
-	mLoadingState = LOADING_STATE_HAS_INFORMATIONS;
-}
-
-DRFont::DRFont(FontManager* fm, const char* filename)
-	: mFontFace(NULL), mFontFileMemory(NULL), mFontFileMemorySize(0)
-{
-	FT_Error error = FT_New_Face(*fm->getLib(), filename, 0, &mFontFace);
-	if (error == FT_Err_Unknown_File_Format)
-	{
-		LOG_ERROR_VOID("Font format unsupported");
-	}
-	else if (error)
-	{
-		EngineLog.writeToLog("error: %d by reading font from file: %s",
-			error, filename);
-		LOG_ERROR_VOID("Font file couldn't read");
-	}
-	EngineLog.writeToLog("font face count: %d", mFontFace->num_faces);
 	mLoadingState = LOADING_STATE_HAS_INFORMATIONS;
 }
 
 DRFont::~DRFont()
 {
-	FT_Done_Face(mFontFace);
-	DR_SAVE_DELETE_ARRAY(mFontFileMemory);
-	mFontFileMemorySize = 0;
+	for (GlyphenMap::iterator it = mGlyphenMap.begin(); it != mGlyphenMap.end(); it++) {
+		DR_SAVE_DELETE(it->second);
+	}
+	mGlyphenMap.clear();
 }
 
+DRReturn DRFont::loadAll()
+{
+	assert(mFontFileMemory != NULL);
+	assert(mFontFileMemorySize > 0);
+	Uint32 startTicks = SDL_GetTicks();
 
-void DRFont::loadGlyph(FT_ULong c)
+	// loading freetype lib
+	FT_Library freeTypeLibrayHandle;
+	FT_Face font;
+	FT_Error error = FT_Init_FreeType(&freeTypeLibrayHandle);
+	if (error)
+	{
+		EngineLog.writeToLog("error code: %d", error);
+		LOG_ERROR("error by loading freetype lib", DR_ERROR);
+	}
+	// loading font
+	error = FT_New_Memory_Face(freeTypeLibrayHandle, mFontFileMemory, mFontFileMemorySize, 0, &font);
+	if (error == FT_Err_Unknown_File_Format)
+	{
+		LOG_ERROR("Font format unsupported", DR_ERROR);
+	}
+	else if (error)
+	{
+		EngineLog.writeToLog("error: %d by reading font from memory", error);
+		LOG_ERROR("Font memory couldn't read", DR_ERROR);
+	}
+	// set size of font
+	error = FT_Set_Pixel_Sizes(
+		font,   // handle to face object 
+		0,      // pixel_width           
+		16);   // pixel_height          */
+			   /*FT_Error error = FT_Set_Char_Size(
+			   mFontFace,    // handle to face object
+			   0,       // char_width in 1/64th of points
+			   16 * 64,   // char_height in 1/64th of points
+			   600,     // horizontal device resolution
+			   800);   //vertical device resolution      */
+	if (error) {
+		EngineLog.writeToLog("error by setting pixel size to 16px: %d 0x%x", error, error);
+	}
+
+	int glyphMapSize = 0;
+	const u32* glyphMap = mParent->getGlyphMap(&glyphMapSize);
+	for (int iGlyphIndex = 0; iGlyphIndex < glyphMapSize; iGlyphIndex++) {
+		if (loadGlyph(glyphMap[iGlyphIndex], font)) {
+			cleanUp(font, freeTypeLibrayHandle);
+			LOG_ERROR("error by loading glyph", DR_ERROR);
+		}
+	}
+
+	// clean up
+	cleanUp(font, freeTypeLibrayHandle);
+	setLoadingState(LOADING_STATE_FULLY_LOADED);
+
+	printf("[DRFont::loadAll] font: %s, %d ms\n", mFontName.data(), SDL_GetTicks() - startTicks);
+	return DR_OK;
+}
+
+void DRFont::cleanUp(FT_Face face, FT_Library lib)
+{
+	FT_Done_Face(face);
+	DR_SAVE_DELETE_ARRAY(mFontFileMemory);
+	mFontFileMemorySize = 0;
+	FT_Done_FreeType(lib);
+}
+
+DRReturn DRFont::loadGlyph(FT_ULong c, FT_Face face)
 {
 	Uint32 startTicks = SDL_GetTicks();
 	Uint32 gStartTicks = SDL_GetTicks();
 	//EngineLog.writeAsBinary("load glyph ", c);
 	//	EngineLog.writeToLog("glyph as number: %d", c);
 	
+	FT_UInt glyph_index = getGlyphIndex(c, face);
 	
-	FT_UInt glyph_index = getGlyphIndex(c);
-	FT_Error error = FT_Set_Pixel_Sizes(
-		mFontFace,   // handle to face object 
-		0,      // pixel_width           
-		16);   // pixel_height          */
-	/*FT_Error error = FT_Set_Char_Size(
-			mFontFace,    // handle to face object           
-			0,       // char_width in 1/64th of points  
-			16 * 64,   // char_height in 1/64th of points 
-			600,     // horizontal device resolution    
-			800);   //vertical device resolution      */
-	if (error) {
-		EngineLog.writeToLog("error by setting pixel size to 16px: %d 0x%x", error, error);
-	}
-	error = FT_Load_Char(mFontFace, c, FT_LOAD_NO_BITMAP);
+	FT_Error error = FT_Load_Char(face, c, FT_LOAD_NO_BITMAP);
 	if (error) {
 		EngineLog.writeToLog("error by loading glyph: %d %x", error, error);
+		LOG_ERROR("error by loading glyph", DR_ERROR);
 	}
-	FT_GlyphSlot slot = mFontFace->glyph;
-	FT_BBox boundingBox = mFontFace->bbox;
+	FT_GlyphSlot slot = face->glyph;
+	FT_BBox boundingBox = face->bbox;
 
-	printf("[DRFont::loadGlyph] load FT Character: %d ms\n", SDL_GetTicks() - startTicks);
+	//printf("[DRFont::loadGlyph] (%d) load FT Character: %d ms\n", c, SDL_GetTicks() - startTicks);
 	startTicks = SDL_GetTicks();
 	/*
 	printf("Font Infos:\n");
@@ -181,18 +193,19 @@ void DRFont::loadGlyph(FT_ULong c)
 			addPointToBezier(DRVector2i(firstPoint.x-boundingBox.xMin, firstPoint.y-boundingBox.yMin), contur, true);
 		}
 		
-		printf("[DRFont::loadGlyph] fill glyph structure: %d ms\n", SDL_GetTicks() - startTicks);
+		//printf("[DRFont::loadGlyph] (%d) fill glyph structure: %d ms\n", c, SDL_GetTicks() - startTicks);
 		
 		
 		//DRVector2 scaleFaktor(1.0f/(boundingBox.xMax - boundingBox.xMin), 1.0f/(boundingBox.yMax - boundingBox.yMin));
 	
-
-		mGlyph.calculateShortBezierCurves(mBezierKurves, conturCount);
+		Glyph* glyph = new Glyph;
+		glyph->calculateShortBezierCurves(mBezierKurves, conturCount);
+		mGlyphenMap.insert(GlyphenPair(c, glyph));
 		startTicks = SDL_GetTicks();
 
 		
 		//mGlyph.scale(DRVector2(scaleF));
-		printf("[DRFont::loadGlyph] fill final: %d ms\n", SDL_GetTicks() - startTicks);
+		//printf("[DRFont::loadGlyph] (%d) fill final: %d ms\n", c, SDL_GetTicks() - startTicks);
 		startTicks = SDL_GetTicks();
 		
 		// clean up
@@ -203,12 +216,11 @@ void DRFont::loadGlyph(FT_ULong c)
 			mBezierKurves[i].clear();
 		}
 		DR_SAVE_DELETE_ARRAY(mBezierKurves);
-		
 		mBezierKurves = NULL;
-		
 	}
 		
-	printf("[DRFont::loadGlyph] total time: %d ms\n", SDL_GetTicks() - gStartTicks);
+	//printf("[DRFont::loadGlyph] (%d) total time: %d ms\n", c, SDL_GetTicks() - gStartTicks);
+	return DR_OK;
 }
 
 
@@ -239,5 +251,6 @@ void DRFont::printBeziers(int iContur)
 		count++;
 	}
 }
+
 
 

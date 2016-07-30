@@ -94,6 +94,7 @@ namespace HUD {
 		virtual DRReturn run() {
 			return mCaller->loadFromConfig(UniLib::readFileAsString(mConfigFileName));
 		}
+		virtual const char* getResourceType() const { return "ConfigJsonLoadTask"; };
 	protected:
 		RootNode* mCaller;
 		std::string mConfigFileName;

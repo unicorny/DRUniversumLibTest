@@ -1,27 +1,38 @@
 #include "hud/FontManager.h"
 #include "hud/Font.h"
 
+#include "controller/CPUSheduler.h"
+
 using namespace UniLib;
 
 //********************************************************************
-FontManager::FontManager()
-	: mFreeTypeLibrayHandle(NULL), mDefaultFontHash(0), mGlyphCount(0), mGlyphMap(NULL),
+FontManager::FontManager(controller::CPUSheduler* loadingThread /* = NULL*/)
+	: mLoadingScheduler(loadingThread), mCreatedByMySelf(false), mDefaultFontHash(0), mGlyphCount(0), mGlyphMap(NULL),
 	  returnedFontLoadings(0), mFontCalculatingFinishCommand(NULL)
 {
-	FT_Error error = FT_Init_FreeType(&mFreeTypeLibrayHandle);
+	if (!mLoadingScheduler) {
+		mLoadingScheduler = new controller::CPUSheduler(2, "fontLoad");
+		mCreatedByMySelf = true;
+	}
+	/*FT_Error error = FT_Init_FreeType(&mFreeTypeLibrayHandle);
 	if (error)
 	{
 		EngineLog.writeToLog("error code: %d", error);
 		LOG_ERROR_VOID("error by loading freetype lib");
 	}
+	*/
 }
 
 FontManager::~FontManager()
 {
 	mFonts.s_clear();
-	FT_Done_FreeType(mFreeTypeLibrayHandle);
+	//FT_Done_FreeType(mFreeTypeLibrayHandle);
 	DR_SAVE_DELETE_ARRAY(mGlyphMap);
 	mGlyphCount = 0;
+	if (mCreatedByMySelf) {
+		DR_SAVE_DELETE(mLoadingScheduler);
+	} 
+	mLoadingScheduler = NULL;
 }
 
 DRReturn FontManager::addFont(const char* fontName, const char* fontPath, const char* weight /* = "normal"*/, bool isDefault /*= false*/)
@@ -42,13 +53,18 @@ DRReturn FontManager::addFont(const char* fontName, const char* fontPath, const 
 	}
 	file.close();
 
-	DRFont* font = new DRFont(this, data, size);
+	std::string fullName = fontName;
+	fullName += "-";
+	fullName += weight;
+	DRFont* font = new DRFont(this, data, size, fullName.data());
 	DRFont* dublette = NULL;
 	if (mFonts.s_add(id, font, &dublette)) {
 		EngineLog.writeToLog("Hash Collision with font: %s", fontName);
 		delete font;
 		return DR_ERROR;
 	}
+	controller::TaskPtr task(new DRFontLoadingTask(mLoadingScheduler, font));
+	task->scheduleTask(task);
 	if (isDefault) mDefaultFontHash = id;
 
 	return DR_OK;

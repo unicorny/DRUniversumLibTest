@@ -70,18 +70,27 @@ void BezierCurvesContainer::print()
 
 DRBoundingBox BezierCurvesContainer::getBoundingBoxForBezier()
 {
-	DRBoundingBox bb;
-	for (int i = 0; i < mIndiceCount; i++) {
-		bb.expandBy(getBoundingBoxForBezier(mIndices[i]));
+	DRVector2 minV(100.0f);
+	DRVector2 maxV(0.0f);
+	for (int i = 0; i < mPointCount; i++) {
+		for (int c = 0; c < 2; c++) {
+			minV.c[c] = min(mPoints[i].c[c], minV.c[c]);
+			maxV.c[c] = max(mPoints[i].c[c], maxV.c[c]);
+		}
+		if (mPoints[i].x > maxV.x) {
+			int iZal = 1;
+		}
 	}
-	return bb;
+	return DRBoundingBox(minV, maxV);
 }
 DRBoundingBox BezierCurvesContainer::getBoundingBoxForBezier(int index) {
 	DRVector2 minV(100.0f);
 	DRVector2 maxV(0.0f);
 	for (int i = mIndices[index * 2]; i < mIndices[index * 2 + 1]; i++) {
-		minV = min(mPoints[i], minV);
-		maxV = max(mPoints[i], maxV);
+		for (int c = 0; c < 2; c++) {
+			minV.c[c] = min(mPoints[i].c[c], minV.c[c]);
+			maxV.c[c] = max(mPoints[i].c[c], maxV.c[c]);
+		}
 	}
 	return DRBoundingBox(minV, maxV);
 }

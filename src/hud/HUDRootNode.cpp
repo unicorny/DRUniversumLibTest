@@ -23,7 +23,7 @@ namespace HUD {
 	{
 		assert(mMaterial.getResourcePtrHolder());
 		mMaterial->bind();
-		if (mParent->getTextFont() && mParent->getTextGeom()->isGeometrieReady()) mParent->getTextGeom()->setStaticGeometrie();
+		if (mParent->getTextFont() && mParent->getTextGeom() && mParent->getTextGeom()->isGeometrieReady()) mParent->getTextGeom()->setStaticGeometrie();
 		//mParent->getTextFont()->bind();
 		/*UniLib::view::Geometrie*geo = controller::BaseGeometrieManager::getInstance()->getGeometrie(controller::BASE_GEOMETRIE_PLANE);
 		if (geo->isReady()) {
@@ -49,7 +49,7 @@ namespace HUD {
 	// **************************************************************
 
 	RootNode::RootNode()
-		: Thread("HUD"), ContainerNode("ROOT", NULL), mExitCalled(false), mRenderCall(NULL), mFontManager(NULL), mFont(NULL)
+		: Thread("HUD"), ContainerNode("ROOT", NULL), mExitCalled(false), mRenderCall(NULL), mFontManager(NULL), mFont(NULL), mTextGeom(NULL)
 	{
 #ifdef _UNI_LIB_DEBUG
 		mRendererCasted->setName("HUD::RootNode Renderer");
@@ -62,7 +62,7 @@ namespace HUD {
 			controller::GPUScheduler::getInstance()->unregisterGPURenderCommand(mRenderCall, controller::GPU_SCHEDULER_COMMAND_AFTER_RENDERING);
 			DR_SAVE_DELETE(mRenderCall);
 		}
-		DR_SAVE_DELETE(mFont);
+		//DR_SAVE_DELETE(mFont);
 		DR_SAVE_DELETE(mFontManager);
 
 	}
@@ -71,7 +71,7 @@ namespace HUD {
 	{
 		mScreenResolution = screenResolution;
 		mFPS_Updates = fps_update;
-		mFontManager = new FontManager;
+		mFontManager = new FontManager(gCPUScheduler);
 		controller::TaskPtr task(new ConfigJsonLoadTask(this, hud_config_json));
 		task->scheduleTask(task);
 //		condSignal();
@@ -162,15 +162,14 @@ namespace HUD {
 
 			if (!mFont) {
 				// test
-				//mFont = new DRFont(mFontManager, "data/font/MandroidBB.ttf");
-				//mFont = new DRFont(mFontManager, "data/font/neuropol_x_rg.ttf");
-				mFont = new DRFont(mFontManager, "data/font/arial.ttf");
-				mFont->loadGlyph(L'Ö');
+				mFont = mFontManager->getDefaultFont();
+			}
+			if(mFont->checkLoadingState() == LOADING_STATE_FULLY_LOADED && !mTextGeom) {
 
 				// create geom
 				mTextGeom = new TextGeom;
 				mTextGeom->init();
-				mTextGeom->buildGeom(mFont->getGlyph());
+				mTextGeom->buildGeom(mFont->getGlyph(L'ö'));
 				//mFont->loadGlyph(-61 | (-92 << 8));
 			}
 

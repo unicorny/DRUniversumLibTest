@@ -45,7 +45,7 @@ DRReturn GlyphGrid::fillGrid(BezierCurvesContainer* bezierCurves)
 		}
 	}
 	Uint32 endTicks = SDL_GetTicks();
-	printf("[GlyphGrid::fillGrid] %d ms\n", endTicks - startTicks);
+	//printf("[GlyphGrid::fillGrid] %d ms\n", endTicks - startTicks);
 	return DR_OK;
 }
 
@@ -107,15 +107,24 @@ DRReturn Glyph::calculateShortBezierCurves(BezierCurveList* bezierCurveLists, in
 	// calculate sum bounding box for final bezier curves
 	DRBoundingBox boundingBox = mFinalBezierCurves.getBoundingBoxForBezier();
 	DRVector2 scaleVector = boundingBox.getMax() - boundingBox.getMin();
-	float scaleF = max(scaleVector.x,scaleVector.y)*1.1f;
+	float scaleF = max(boundingBox.getMax().x, boundingBox.getMax().y)*1.1f;
 	float scaleInteger = 0;
 	modf(scaleF, &scaleInteger);
-	mFinalBezierCurves.scale(DRVector2(scaleInteger));
+	//mFinalBezierCurves.scale(DRVector2(scaleInteger));
+	DRVector2 scale(scaleInteger);
+	for (int i = 0; i < mFinalBezierCurves.getPointCount(); i++) {
+		DRVector2 temp = mFinalBezierCurves[i];
+		mFinalBezierCurves[i] /= scale;
+		if (mFinalBezierCurves[i].x > 1.0f || mFinalBezierCurves[i].y > 1.0f) {
+			UniLib::EngineLog.writeToLog("scale: %dx%d, temp: %dx%d, final: %dx%d",
+				scale.x, scale.y, temp.x, temp.y, mFinalBezierCurves[i].x, mFinalBezierCurves[i].y);
+		}
+	}
 
 	// set up grid
 	mGlyphGrid.fillGrid(&mFinalBezierCurves);
 	Uint32 endTicks = SDL_GetTicks();
-	printf("[Glyph::calculateShortBezierCurves] %d ms\n", endTicks - startTicks);
+	//printf("[Glyph::calculateShortBezierCurves] %d ms\n", endTicks - startTicks);
 
 	return DR_OK;
 }
