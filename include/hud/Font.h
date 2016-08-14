@@ -16,16 +16,51 @@ namespace UniLib {
 }
 
 
+/*! 
+ *
+ * \author: Dario Rekowski
+ *
+ * \date: 
+ *
+ * \desc: object represent one font with data buffers for shader
+ * 
+ * data layout:  
+ * - integer or short index buffer
+ * - integer or short bezier curve index buffer
+ * - float or double point buffer
+ * 
+ * grid buffer:
+ * 
+ * (foreach glyph)
+ *  (foreach grid cell)
+ *   (1) start index
+ *  (foreach grid cell)
+ *   (1) index count
+ *   (je 1) ... bezier index
+ * 
+ * bezier curve index buffer:
+ * 
+ * (foreach bezier curve)
+ *  (1) index count
+ *  (je 1) ... point index
+ *
+ * point buffer:
+ *
+ * (foreach point)
+ *  (2) vector2
+ */
 
 class FontManager;
 class DRFont : public UniLib::lib::Loadable
 {
+	friend GlyphCalculate;
 public:
 	DRFont(FontManager* fm, u8* data, u32 dataSize, const char* fontName);
 	~DRFont();
 
 	
 	__inline__ const Glyph* getGlyph(u32 c) { return mGlyphenMap[c]; }
+	std::queue<DRVector2> getVerticesForGlyph(u32 c);
 	__inline__ const char* getName() { return mFontName.data(); }
 
 	DRReturn loadAll();
@@ -33,9 +68,6 @@ public:
 protected:
 	FontManager* mParent;
 	std::string  mFontName;
-
-	std::queue<DRVector2i> mTempPoints;	
-	BezierCurveList* mBezierKurves;
 
 	// font file in memory
 	u8*						    mFontFileMemory;
@@ -47,11 +79,45 @@ protected:
 	typedef std::pair<u32, Glyph*> GlyphenPair;
 	GlyphenMap					  mGlyphenMap;
 
-	__inline__ FT_UInt getGlyphIndex(FT_ULong charcode, FT_Face face) { return FT_Get_Char_Index(face, charcode); }
-	DRReturn loadGlyph(FT_ULong c, FT_Face face);
-	void addPointToBezier(DRVector2i p, int conturIndex, bool onCurve = true);
-	void printBeziers(int iContur);
+	struct DataBuffer {
+		DataBuffer(u8 _sizePerIndex, u16 _indexCount)
+			: data(malloc(sizePerIndex*indexCount)), sizePerIndex(_sizePerIndex), indexCount(_indexCount) {}
+		~DataBuffer() { free(data); }
+		void* data;
+		u8 sizePerIndex;
+		u16 indexCount;
+	};
+
+	struct BezierCurve64 {
+		BezierCurve64()
+			: count(0), indices() {}
+		union {
+			struct {
+				u16 count;
+				u16 indices[3];
+			};
+			u64 hash;
+		};
+		
+		bool operator < (const BezierCurve64& b) const { return hash < b.hash; }
+	};
+
+	typedef std::map<float, int> IndexMap;
+	typedef std::map<float, IndexMap> PointIndexMap;
+	typedef std::map<BezierCurve64, int> BezierCurve64Map;
+	PointIndexMap mPointIndexMap;
+	int			  mPointCount;
+	BezierCurve64Map mBezierCurvesMap;
+	int			  mBezierCurveCount;
+
+	DataBuffer* mIndexBuffer;
+	DataBuffer* mPointBuffer;
+	DataBuffer* mBezierCurveBuffer;
+
+	
 	void cleanUp(FT_Face face, FT_Library lib);
+	int getIndexOfPointInMap(DRVector2 point);
+	int getIndexOfBezierMap(const DRBezierCurve& bezierCurve);
 };
 
 class DRFontLoadingTask : public UniLib::controller::CPUTask

@@ -36,7 +36,10 @@ void BezierCurvesContainer::addCurve(DRBezierCurve* b, bool conturStartCurve/* =
 			LOG_WARNING("to many points added to array");
 			break;
 		}
-		if (b->getNodeCount() <= iCurvePoint) break;
+		if (b->getNodeCount() <= iCurvePoint) {
+			LOG_WARNING("node count is smaller then iCurvePoint");
+			break;
+		}
 		mPoints[mCursor++] = (*b)[iCurvePoint];
 	}
 	mIndices[mIndiceCursor * 2 + 1] = mCursor - 1;
@@ -93,4 +96,15 @@ DRBoundingBox BezierCurvesContainer::getBoundingBoxForBezier(int index) {
 		}
 	}
 	return DRBoundingBox(minV, maxV);
+}
+
+DRBezierCurve BezierCurvesContainer::getBezierCurve(u16 index) const
+{
+	int nodeCount = mIndices[index * 2 + 1] - mIndices[index * 2];
+	DRBezierCurve curve(nodeCount);
+	int cursor = 0;
+	for (int i = mIndices[index * 2]; i < mIndices[index * 2 + 1]; i++) {
+		curve[cursor++] = mPoints[i];
+	}
+	return curve;
 }

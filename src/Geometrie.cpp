@@ -20,6 +20,7 @@ Geometrie::~Geometrie()
 
 DRReturn Geometrie::uploadToGPU()
 {
+	Uint32 startTicks = SDL_GetTicks();
 	geometrie::BaseGeometrie* g = mGeometrieModel;
 	// create buffer
 	glGenBuffers(2, mGLBufferIDs);

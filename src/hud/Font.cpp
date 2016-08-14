@@ -5,7 +5,8 @@
 using namespace UniLib;
 
 DRFont::DRFont(FontManager* fm, u8* data, u32 dataSize, const char* fontName)
-	: mParent(fm), mFontName(fontName), mFontFileMemory(data), mFontFileMemorySize(dataSize)
+	: mParent(fm), mFontName(fontName), mFontFileMemory(data), mFontFileMemorySize(dataSize),
+	mPointCount(0), mBezierCurveCount(0), mIndexBuffer(NULL), mPointBuffer(NULL), mBezierCurveBuffer(NULL)
 {
 	mLoadingState = LOADING_STATE_HAS_INFORMATIONS;
 }
@@ -16,13 +17,18 @@ DRFont::~DRFont()
 		DR_SAVE_DELETE(it->second);
 	}
 	mGlyphenMap.clear();
+	DR_SAVE_DELETE(mIndexBuffer);
+	DR_SAVE_DELETE(mPointBuffer);
+	DR_SAVE_DELETE(mBezierCurveBuffer);
 }
 
 DRReturn DRFont::loadAll()
 {
 	assert(mFontFileMemory != NULL);
 	assert(mFontFileMemorySize > 0);
+
 	Uint32 startTicks = SDL_GetTicks();
+	Uint32 gStartTicks = startTicks;
 
 	// loading freetype lib
 	FT_Library freeTypeLibrayHandle;
@@ -61,19 +67,219 @@ DRReturn DRFont::loadAll()
 
 	int glyphMapSize = 0;
 	const u32* glyphMap = mParent->getGlyphMap(&glyphMapSize);
+	GlyphCalculate* calculator = new GlyphCalculate[glyphMapSize];
+	u32 bezierCurveBufferCount = 0;
+
+	//EngineLog.writeToLog("[DRFont::loadAll] prepare Font: %d ms", SDL_GetTicks() - startTicks);
+	startTicks = SDL_GetTicks();
 	for (int iGlyphIndex = 0; iGlyphIndex < glyphMapSize; iGlyphIndex++) {
-		if (loadGlyph(glyphMap[iGlyphIndex], font)) {
+		// fill beziers and optimize
+		if (calculator[iGlyphIndex].loadGlyph(glyphMap[iGlyphIndex], font)) {
 			cleanUp(font, freeTypeLibrayHandle);
 			LOG_ERROR("error by loading glyph", DR_ERROR);
+		}
+		// put points and beziers into maps
+		BezierCurveList* list = calculator[iGlyphIndex].getBezierKurves();
+		int index = 0;
+		for (BezierCurveList::iterator it = list->begin(); it != list->end(); it++) {
+			int bezierIndex = getIndexOfBezierMap(**it);
+			assert(bezierIndex < mBezierCurveCount);
+			calculator[iGlyphIndex][index++] = bezierIndex;
+			bezierCurveBufferCount++;
+			bezierCurveBufferCount += (*it)->getNodeCount();
 		}
 	}
 
 	// clean up
 	cleanUp(font, freeTypeLibrayHandle);
+
+	// EngineLog.writeToLog("[DRFont::loadAll] create glyph and fill maps: %d ms", SDL_GetTicks() - startTicks);
+	startTicks = SDL_GetTicks();
+
+	// fill point buffer, calculate bounding box
+	u16 pointCountShort = mPointCount;
+	if ((u32)pointCountShort != mPointCount) {
+		LOG_ERROR("point count exceed short data range!", DR_ERROR);
+	}
+	mPointBuffer = new DataBuffer(sizeof(DRVector2), pointCountShort);
+	DRVector2* vectors = (DRVector2*)mPointBuffer->data;
+	DRVector2 vMax(0.0f), vMin(1000.0f);
+	for (PointIndexMap::iterator it = mPointIndexMap.begin(); it != mPointIndexMap.end(); it++) {
+		for (IndexMap::iterator it2 = it->second.begin(); it2 != it->second.end(); it2++) {
+			DRVector2 v(it->first, it2->first);
+			vectors[it2->second] = v;
+			for (int i = 0; i < 2; i++) {
+				vMax.c[i] = max(v.c[i], vMax.c[i]);
+				vMin.c[i] = min(v.c[i], vMin.c[i]);
+			}
+		}
+	}
+	//EngineLog.writeToLog("[DRFont::loadAll] fill point buffer: %d ms", SDL_GetTicks() - startTicks);
+	startTicks = SDL_GetTicks();
+/*
+	for (u16 iPoint = 0; iPoint < pointCountShort; iPoint++) {
+		printf("[DRFont::loadAll] %d, v: %fx%f\n",
+			iPoint, vectors[iPoint].x, vectors[iPoint].y);
+	}
+	*/
+	// fill bezier curve buffer
+	// check size
+	u16 bezierCountShort = bezierCurveBufferCount;
+	assert(bezierCurveBufferCount > mBezierCurveCount);
+	if ((u32)bezierCountShort != bezierCurveBufferCount) {
+		LOG_ERROR("bezier count exceed short data range!", DR_ERROR);
+	}
+	// malloc
+	mBezierCurveBuffer = new DataBuffer(sizeof(u16), bezierCountShort);
+	int index = 0;
+	u16* bezierIndices = (u16*)mBezierCurveBuffer->data;
+	std::map< u16, u16> newBezierIndices;
+	// add and update indices
+	for (BezierCurve64Map::iterator it = mBezierCurvesMap.begin(); it != mBezierCurvesMap.end(); it++) {
+		BezierCurve64 c = it->first;
+		newBezierIndices.insert(std::pair<u16, u16>(it->second, index));
+		it->second = index;
+		assert(c.count < 4);
+		bezierIndices[index++] = c.count;
+		for (int i = 0; i < c.count; i++) {
+			bezierIndices[index++] = c.indices[i];
+		}
+		assert(index < bezierCurveBufferCount);
+	}
+	//EngineLog.writeToLog("[DRFont::loadAll] create bezier curves buffer: %d ms", SDL_GetTicks() - startTicks);
+	startTicks = SDL_GetTicks();
+	// set new indices
+	for (int iGlyphIndex = 0; iGlyphIndex < glyphMapSize; iGlyphIndex++) {
+		GlyphCalculate* c = &calculator[iGlyphIndex];
+		for (int i = 0; i < c->getBezierKurves()->size(); i++) {
+			u16 oldIndex = (*c)[i];
+			(*c)[i] = newBezierIndices[oldIndex];
+		}
+	}
+	//EngineLog.writeToLog("[DRFont::loadAll] udpate indices: %d ms", SDL_GetTicks() - startTicks);
+	startTicks = SDL_GetTicks();
+
+	// calculate scale factor
+	DRBoundingBox boundingBox(vMin, vMax);
+	DRVector2 scaleVector = boundingBox.getMax() - boundingBox.getMin();
+	float scaleF = max(boundingBox.getMax().x, boundingBox.getMax().y)*1.1f;
+	float scaleInteger = 0;
+	modf(scaleF, &scaleInteger);
+	//mFinalBezierCurves.scale(DRVector2(scaleInteger));
+	DRVector2 scale(scaleInteger);
+
+	// scale points
+	for (u16 iPoint = 0; iPoint < pointCountShort; iPoint++) {
+		vectors[iPoint] /= scale;
+	}
+	//EngineLog.writeToLog("[DRFont::loadAll] scale points: %d ms", SDL_GetTicks() - startTicks);
+	startTicks = SDL_GetTicks();
+
+	u32 gridBufferSize = 0;
+	// create glyphs
+	for (int iGlyph = 0; iGlyph < glyphMapSize; iGlyph++) {
+		Glyph* g = new Glyph;
+		calculator[iGlyph].calculateGrid(this, g);
+		//int bezierCurvesCount = calculator[iGlyph].getBezierKurves()->size();
+		int gridIndexCount = g->getGridIndexCount();
+		gridBufferSize += GLYPHE_GRID_SIZE*GLYPHE_GRID_SIZE * 2 + gridIndexCount;
+		//EngineLog.writeToLog("[DRFont::loadingAll] gridsize for glyph: %d: %d Byte (%d/%d)",
+			//iGlyph, GLYPHE_GRID_SIZE*GLYPHE_GRID_SIZE * 2 + gridIndexCount, gridIndexCount, bezierCurvesCount);
+//		g->init(calculator[iGlyph]);
+		mGlyphenMap.insert(GlyphenPair(glyphMap[iGlyph], g));
+	}
+	//EngineLog.writeToLog("[DRFont::loadAll] calculate grid: %d ms", SDL_GetTicks() - startTicks);
+	startTicks = SDL_GetTicks();
+	// create grid buffer
+	u16 shortGridBufferSize = gridBufferSize;
+	if ((u32)shortGridBufferSize != gridBufferSize) {
+		LOG_ERROR("grid buffer element count exceed short data range!", DR_ERROR);
+	}
+	mIndexBuffer = new DataBuffer(sizeof(u16), gridBufferSize);
+	u16* data = (u16*)mIndexBuffer->data;
+	index = 0;
+	// fill grid buffer
+	for (GlyphenMap::iterator it = mGlyphenMap.begin(); it != mGlyphenMap.end(); it++) {
+		assert(index < gridBufferSize);
+		u32 size = 0;
+		u32* rawData = it->second->getGridRawData(size);
+		assert(size + index <= gridBufferSize);
+		assert(rawData != NULL);
+		it->second->setDataBufferIndex(index);
+		for (u32 iData = 0; iData < size; iData++) {
+			u16 shortRawData = rawData[iData];
+			assert((u32)shortRawData == rawData[iData]);
+			data[index++] = shortRawData;
+		}
+		DR_SAVE_DELETE_ARRAY(rawData);
+	}
+	float summe = (float)((gridBufferSize + mBezierCurveCount) * sizeof(u16) + mPointCount * sizeof(DRVector2)) / 1024.0f;
+	EngineLog.writeToLog("[DRFont::loadAll] statistic:\n\tindex buffer size: %.3f kByte (%d)\n\tpoint buffer size: %.3f kByte (%d)\n\tbezier curve buffer size: %.3f kByte (%d)\n\tsave: %.3f kByte\n\tSumme: %.3f kByte",
+		(float)gridBufferSize*(float)sizeof(u16)/1024.0f, gridBufferSize,
+		(float)mPointCount*(float)sizeof(DRVector2)/1024.0f, mPointCount,
+		(float)mBezierCurveCount*(float)sizeof(u16)/1024.0f, mBezierCurveCount,
+		(float)(mGlyphenMap.size()*GLYPHE_GRID_SIZE*GLYPHE_GRID_SIZE)/1024.0f,
+		summe);
+		//*/
 	setLoadingState(LOADING_STATE_FULLY_LOADED);
 
-	printf("[DRFont::loadAll] font: %s, %d ms\n", mFontName.data(), SDL_GetTicks() - startTicks);
+	//EngineLog.writeToLog("[DRFont::loadAll] sum: %d ms", SDL_GetTicks() - gStartTicks);
+
 	return DR_OK;
+}
+
+std::queue<DRVector2> DRFont::getVerticesForGlyph(u32 c)
+{
+	std::queue<DRVector2> outQueue;
+	//return outQueue;
+	// get g
+	const Glyph* g = getGlyph(c);
+	assert(g != NULL);
+
+	assert(mIndexBuffer->sizePerIndex == sizeof(u16));
+	u16* indexBuffer = (u16*)mIndexBuffer->data;
+	u16* startIndex = &indexBuffer[g->getDataBufferIndex()+GLYPHE_GRID_SIZE*GLYPHE_GRID_SIZE];
+	// get indices
+	std::list<int> bezierCurveIndices;
+	int iGridCell = 0;
+	while (iGridCell < GLYPHE_GRID_SIZE*GLYPHE_GRID_SIZE) {
+		int s = startIndex[iGridCell++];
+		for (int iV = 1; iV <= s; iV++) {
+			bezierCurveIndices.push_back(startIndex[iGridCell++]);
+		}
+	}
+	// sort to kill doublets
+	//bezierCurveIndices.sort();
+
+	// get point buffer
+	assert(mPointBuffer->sizePerIndex == sizeof(DRVector2));
+	DRVector2* pointBuffer = (DRVector2*)mPointBuffer->data;
+	// get bezier curve buffer
+	assert(mBezierCurveBuffer->sizePerIndex == sizeof(u16));
+	u16* bezierCurveIndicesBuffer = (u16*)mBezierCurveBuffer->data;
+	int lastIndex = -1;
+	for (std::list<int>::iterator it = bezierCurveIndices.begin(); it != bezierCurveIndices.end(); it++) {
+		//if (lastIndex == *it) continue;
+		lastIndex = *it;
+		int iCountPoints = bezierCurveIndicesBuffer[lastIndex];
+		DRBezierCurve curve(iCountPoints);
+		for (int i = 1; i <= iCountPoints; i++) {
+			//outQueue.push(pointBuffer[bezierCurveIndicesBuffer[lastIndex+i]]);
+			curve[i - 1] = pointBuffer[bezierCurveIndicesBuffer[lastIndex + i]];
+		}
+		const int control_points_count = 40;
+		DRVector2 controlPoints[control_points_count];
+		float f[control_points_count];
+		for (int i = 0; i < control_points_count; i++) {
+			f[i] = (float)i / (float)control_points_count;
+		}
+		curve.calculatePointsOnCurve(f, control_points_count, controlPoints);
+		for (int i = 0; i < control_points_count; i++) {
+			outQueue.push(controlPoints[i]);
+		}
+		
+	}
+	return outQueue;
 }
 
 void DRFont::cleanUp(FT_Face face, FT_Library lib)
@@ -84,173 +290,45 @@ void DRFont::cleanUp(FT_Face face, FT_Library lib)
 	FT_Done_FreeType(lib);
 }
 
-DRReturn DRFont::loadGlyph(FT_ULong c, FT_Face face)
+
+int DRFont::getIndexOfPointInMap(DRVector2 point)
 {
-	Uint32 startTicks = SDL_GetTicks();
-	Uint32 gStartTicks = SDL_GetTicks();
-	//EngineLog.writeAsBinary("load glyph ", c);
-	//	EngineLog.writeToLog("glyph as number: %d", c);
-	
-	FT_UInt glyph_index = getGlyphIndex(c, face);
-	
-	FT_Error error = FT_Load_Char(face, c, FT_LOAD_NO_BITMAP);
-	if (error) {
-		EngineLog.writeToLog("error by loading glyph: %d %x", error, error);
-		LOG_ERROR("error by loading glyph", DR_ERROR);
-	}
-	FT_GlyphSlot slot = face->glyph;
-	FT_BBox boundingBox = face->bbox;
-
-	//printf("[DRFont::loadGlyph] (%d) load FT Character: %d ms\n", c, SDL_GetTicks() - startTicks);
-	startTicks = SDL_GetTicks();
-	/*
-	printf("Font Infos:\n");
-	printf("face count: %d\n", mFontFace->num_faces);
-	if (mFontFace->face_flags & FT_FACE_FLAG_SCALABLE == FT_FACE_FLAG_SCALABLE) {
-		printf("face is scalable!\n");
-	}
-	printf("face flags: %d\n", mFontFace->face_flags);
-	printf("glyph count: %d\n", mFontFace->num_glyphs);
-	printf("font familiy name: %s\n", mFontFace->family_name);
-	printf("font style name: %s\n", mFontFace->style_name);
-	printf("charmap count: %d\n", mFontFace->num_charmaps);
-	
-	printf("bounding box: xMin: %d, xMax: %d, yMin: %d, yMax: %d\n",
-		boundingBox.xMin, boundingBox.xMax, boundingBox.yMin, boundingBox.yMax);
-	printf("units per EM: %d\n", mFontFace->units_per_EM);
-	printf("ascender: %d, descender: %d, height: %d\n", mFontFace->ascender, mFontFace->descender, mFontFace->height);
-	printf("underline_position: %d\n", mFontFace->underline_position);
-
-	  // a small shortcut 
-
-	printf("linearHoriAdvance: %d\n", slot->linearHoriAdvance);
-	printf("linearVertAdvance: %d\n", slot->linearVertAdvance);
-	
-	printf("contur for %c\n", c);
-	*/
-	//printf("[DRFont::loadGlyph] print infos: %d ms\n", SDL_GetTicks() - startTicks);
-	//startTicks = SDL_GetTicks();
-	
-	if (slot->format == FT_GLYPH_FORMAT_OUTLINE) {
-		short conturCount = slot->outline.n_contours;
-		short pointCount = slot->outline.n_points;
-		// get max x and y value
-		short maxX = 0, maxY = 0;
-		short minX = 1000, minY = 1000;
-		for (short i = 0; i < pointCount; i++) {
-			FT_Vector p = slot->outline.points[i];
-			maxX = max(maxX, p.x);
-			maxY = max(maxY, p.y);
-			minX = min(minX, p.x);
-			minY = min(minY, p.y);
+	PointIndexMap::iterator it = mPointIndexMap.find(point.x);
+	// found
+	if (it != mPointIndexMap.end()) {
+		IndexMap::iterator it2 = it->second.find(point.y);
+		if (it2 != it->second.end()) {
+			return it2->second;
 		}
-
-		mBezierKurves = new std::list<DRBezierCurve*>[conturCount];
-		for (short contur = 0; contur < conturCount; contur++) {
-			short start = 0;
-			while (!mTempPoints.empty()) mTempPoints.pop();
-			FT_Vector firstPoint;
-			if (contur > 0) start = slot->outline.contours[contur - 1] + 1;
-			//printf("contur: %d\n", contur);
-			for (short i = start; i <= slot->outline.contours[contur]; i++) 
-			{	
-				FT_Vector p = slot->outline.points[i];
-				if (i == start) firstPoint = p;
-				char f = slot->outline.tags[i];
-				std::string pointType;
-				switch (f) {
-				case FT_CURVE_TAG_ON: pointType = "On Curve"; break;
-				case FT_CURVE_TAG_CONIC: pointType = "Off Curve, Conic Arc"; break;
-				case FT_CURVE_TAG_CUBIC: pointType = "Off Curve, Cubic Arc"; break;
-				default: pointType = std::to_string((int)f);
-				}
-				bool controlPoint = true;
-				bool thirdOrderControlPoint = true;
-				pointType = "Off Curve";
-				//int index = p.x * 4 + p.y*textureSize.x * 4;
-				if (f & 1 == 1) {
-					addPointToBezier(DRVector2i(p.x - boundingBox.xMin, p.y - boundingBox.yMin), contur, true);
-					controlPoint = false;
-					pointType = "On Curve";
-				}
-				else {
-					addPointToBezier(DRVector2i(p.x - boundingBox.xMin, p.y-boundingBox.yMin), contur, false);
-					if (f & 2 == 2) {
-						// third order bezier arc control point
-						pointType += ", third order bezier arc control point";
-					}
-					else {
-						// second order bezier arc control point
-						thirdOrderControlPoint = false;
-						pointType += ", second order control point";
-					}
-				}
-				if (f & 4 == 4) {
-					// bits 5-7 contain drop out mode
-				}
-			}
-
-			addPointToBezier(DRVector2i(firstPoint.x-boundingBox.xMin, firstPoint.y-boundingBox.yMin), contur, true);
-		}
-		
-		//printf("[DRFont::loadGlyph] (%d) fill glyph structure: %d ms\n", c, SDL_GetTicks() - startTicks);
-		
-		
-		//DRVector2 scaleFaktor(1.0f/(boundingBox.xMax - boundingBox.xMin), 1.0f/(boundingBox.yMax - boundingBox.yMin));
-	
-		Glyph* glyph = new Glyph;
-		glyph->calculateShortBezierCurves(mBezierKurves, conturCount);
-		mGlyphenMap.insert(GlyphenPair(c, glyph));
-		startTicks = SDL_GetTicks();
-
-		
-		//mGlyph.scale(DRVector2(scaleF));
-		//printf("[DRFont::loadGlyph] (%d) fill final: %d ms\n", c, SDL_GetTicks() - startTicks);
-		startTicks = SDL_GetTicks();
-		
-		// clean up
-		for (int i = 0; i < conturCount; i++) {
-			for (BezierCurveList::iterator it = mBezierKurves[i].begin(); it != mBezierKurves[i].end(); it++) {
-				DR_SAVE_DELETE(*it);
-			}
-			mBezierKurves[i].clear();
-		}
-		DR_SAVE_DELETE_ARRAY(mBezierKurves);
-		mBezierKurves = NULL;
+		// not found, insert
+		it->second.insert(std::pair<float, int>(point.y, mPointCount++));
+		return mPointCount - 1;
 	}
-		
-	//printf("[DRFont::loadGlyph] (%d) total time: %d ms\n", c, SDL_GetTicks() - gStartTicks);
-	return DR_OK;
+	// not found, insert
+	IndexMap secondLevel;
+	secondLevel.insert(std::pair<float, int>(point.y, mPointCount++));
+	mPointIndexMap.insert(std::pair<float, IndexMap>(point.x, secondLevel));
+	return mPointCount - 1;
 }
 
-
-void DRFont::addPointToBezier(DRVector2i p, int conturIndex, bool onCurve /*= true*/)
+int DRFont::getIndexOfBezierMap(const DRBezierCurve& bezierCurve)
 {
-	//printf("[DRFont::addPointToBezier] (%d,%d) %d\n", p.x, p.y, onCurve);
-	mTempPoints.push(p);
-	// if one bezier curve is complete
-	if(onCurve && mTempPoints.size() > 1) {
-		mBezierKurves[conturIndex].push_back(new DRBezierCurve(mTempPoints.size()));
-		int index = 0;
-		// adding points to bezier curve
-		while (!mTempPoints.empty()) {
-			(*mBezierKurves[conturIndex].back())[index++] = mTempPoints.front();
-			mTempPoints.pop();
-		}
-		// last point of on curve is first point of next curve
-		addPointToBezier(p, conturIndex, true);
+	assert(bezierCurve.getNodeCount() <= 3);
+	// build bezier curve 64
+	BezierCurve64 curve;
+	curve.count = bezierCurve.getNodeCount();
+	for (int i = 0; i < curve.count; i++) {
+		curve.indices[i] = getIndexOfPointInMap(bezierCurve[(u32)i]);
 	}
-	
+	// check if exist in map
+	BezierCurve64Map::iterator it = mBezierCurvesMap.find(curve);
+	if (it != mBezierCurvesMap.end()) {
+		return it->second;
+	}
+	mBezierCurvesMap.insert(std::pair<BezierCurve64, int>(curve, mBezierCurveCount));
+	return ++mBezierCurveCount-1;
 }
 
-void DRFont::printBeziers(int iContur)
-{
-	int count = 0;
-	for (BezierCurveList::iterator it = mBezierKurves[iContur].begin(); it != mBezierKurves[iContur].end(); it++) {
-		printf("bezier: %d: %s\n", count, (*it)->getAsString().data());
-		count++;
-	}
-}
 
 
 

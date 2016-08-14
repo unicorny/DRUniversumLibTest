@@ -11,6 +11,8 @@ FontManager::FontManager(controller::CPUSheduler* loadingThread /* = NULL*/)
 	  returnedFontLoadings(0), mFontCalculatingFinishCommand(NULL)
 {
 	if (!mLoadingScheduler) {
+		// 2 optimal by 8 Cores and 64 kByte L1 Cache
+		// TODO: check on other configurations
 		mLoadingScheduler = new controller::CPUSheduler(2, "fontLoad");
 		mCreatedByMySelf = true;
 	}

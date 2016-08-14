@@ -71,7 +71,7 @@ namespace HUD {
 	{
 		mScreenResolution = screenResolution;
 		mFPS_Updates = fps_update;
-		mFontManager = new FontManager(gCPUScheduler);
+		mFontManager = new FontManager();
 		controller::TaskPtr task(new ConfigJsonLoadTask(this, hud_config_json));
 		task->scheduleTask(task);
 //		condSignal();
@@ -99,7 +99,7 @@ namespace HUD {
 				}
 				else if (glyph.isString()) {
 					std::string character = glyph.asString().data();
-					EngineLog.writeToLog("%d, %d", character.data()[1] | 64, character.length());
+				//	EngineLog.writeToLog("%d, %d", character.data()[1] | 64, character.length());
 					unsigned long characterAsNumber = 0;
 					if (character.length() == 1) {
 						glyphsMap.push(character.data()[0]);
@@ -164,12 +164,12 @@ namespace HUD {
 				// test
 				mFont = mFontManager->getDefaultFont();
 			}
-			if(mFont->checkLoadingState() == LOADING_STATE_FULLY_LOADED && !mTextGeom) {
+			if(mFont && mFont->checkLoadingState() == LOADING_STATE_FULLY_LOADED && !mTextGeom) {
 
 				// create geom
 				mTextGeom = new TextGeom;
 				mTextGeom->init();
-				mTextGeom->buildGeom(mFont->getGlyph(L'ö'));
+				mTextGeom->buildGeom(mFont->getVerticesForGlyph(L'ä'));
 				//mFont->loadGlyph(-61 | (-92 << 8));
 			}
 

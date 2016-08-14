@@ -36,7 +36,8 @@ DRReturn TextGeom::init()
 		mBaseGeo = new model::geometrie::BaseGeometrie;
 		//		mBaseGeo = new model::geometrie::Plane(model::geometrie::GEOMETRIE_VERTICES);
 		Geometrie* geo = new Geometrie(mBaseGeo);
-		geo->setRenderMode(GL_LINE_STRIP);
+		//geo->setRenderMode(GL_LINE_STRIP);
+		geo->setRenderMode(GL_POINTS);
 		view::GeometriePtr ptr(geo);
 		mGeometrie->setGeometrie(ptr);
 		model::Position* pos = mGeometrie->getPosition();
@@ -51,12 +52,12 @@ DRReturn TextGeom::init()
 	//memset(pixels, 0, sizeof(u8)*textureSize.x*textureSize.y * 4);
 	return DR_OK;
 }
-DRReturn TextGeom::buildGeom(const Glyph* glyph)
+DRReturn TextGeom::buildGeom(std::queue<DRVector2> vertices)
 {
-	const BezierCurvesContainer* bezierCurves = glyph->getFinalBezierCurves();
-	for (u16 i = 0; i < bezierCurves->getPointCount(); i++) {
-		addVertex((*bezierCurves)[i]);
-		//it->plot(pixels, textureSize);
+	//const BezierCurvesContainer* bezierCurves = glyph->getFinalBezierCurves();
+	while (!vertices.empty()) {
+		addVertex(vertices.front());
+		vertices.pop();
 	}
 	
 	mBaseGeo->copyToFastAccess();

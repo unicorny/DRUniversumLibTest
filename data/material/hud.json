@@ -1,10 +1,3 @@
 {"fonts": [
-	{"name":"arial", "path":"data/font/arial.ttf", "default":true},
-	{"weight":"bold", "name":"arial", "path":"data/font/arialbd.ttf"},
-	{"weight":"italic", "name":"arial", "path":"data/font/ariali.ttf"},
-	{"name":"arial black", "path":"data/font/ariblk.ttf"},
-	{"name":"MandroidBB", "path":"data/font/MandroidBB.ttf"},
-	{"weight":"bold", "name":"MandroidBB", "path":"data/font/MandroidBB_bold.ttf"},
-	{"weight":"italic", "name":"MandroidBB", "path":"data/font/MandroidBB_italBB.ttf"},
-	{"name":"NeuropolX", "path":"data/font/neuropol_x_rg.ttf"}
+	{"name":"arial", "path":"data/font/arial.ttf", "default":true}
 ], "glyphs":[{"start":33, "end":126}, "ä","ö","ü","Ä","Ö","Ü","ß"]}

@@ -23,6 +23,9 @@ public:
 	__inline__ u16 getPointCount() const { return mPointCount; }
 	DRVector2& operator[](u16 index) { assert(index < mPointCount); return mPoints[index]; }
 	DRVector2 operator[](u16 index) const { assert(index < mPointCount); return mPoints[index]; }
+	__inline__ u16 getIndex(u16 index) const { return mIndices[index]; }
+
+	DRBezierCurve getBezierCurve(u16 index) const;
 
 protected:
 	DRVector2*	mPoints;

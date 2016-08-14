@@ -29,7 +29,7 @@ public:
 	~TextGeom();
 
 	DRReturn init();
-	DRReturn buildGeom(const Glyph* glyph);
+	DRReturn buildGeom(std::queue<DRVector2> vertices);
 
 	//	__inline__ UniLib::view::TexturePtr getTexture() { return mTexture; }
 	void setStaticGeometrie();
