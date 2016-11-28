@@ -1,6 +1,7 @@
 #include "HUD/Glyph.h"
 #include "HUD/Font.h"
 #include "HUD/BezierCurvesContainer.h"
+#include <fstream>
 
 using namespace UniLib;
 
@@ -24,6 +25,7 @@ DRReturn GlyphGrid::addToGrid(u16 bezierIndex, DRVector2* vectors, u8 vectorCoun
 	float stepSize = 1.0f / (float)mGridSize;
 	
 	// calculate bounding box for grid cell
+	// TODO: move code because it is needed only once
 	for (int y = 0; y < mGridSize; y++) {
 		for (int x = 0; x < mGridSize; x++) {
 			int i = y*mGridSize + x;
@@ -38,15 +40,19 @@ DRReturn GlyphGrid::addToGrid(u16 bezierIndex, DRVector2* vectors, u8 vectorCoun
 	DRBoundingBox bb(vectors, (u16)vectorCount);
 	DRVector2i gridIndexMin = GridNode::getGridIndex(bb.getMin(), stepSize);
 	DRVector2i gridIndexMax = GridNode::getGridIndex(bb.getMax(), stepSize);
+	int addCount = 0;
 	//printf("(%d) min: %d, %d, max: %d, %d\n", i, gridIndexMin.x, gridIndexMin.y, gridIndexMax.x, gridIndexMax.y);
 	for (int iy = gridIndexMin.y; iy <= gridIndexMax.y; iy++) {
 		for (int ix = gridIndexMin.x; ix <= gridIndexMax.x; ix++) {
 			int index = iy*mGridSize + ix;
 			assert(index < mGridSize*mGridSize);
 			mGridNodes[index].addIndex(bezierIndex);
+			addCount++;
 		}
 	}
-
+	if (!addCount) {
+		LOG_ERROR("couldn't add bezier curve to grid", DR_ERROR);
+	}
 	return DR_OK;
 }
 
@@ -68,35 +74,64 @@ int GlyphGrid::getIndicesInGridCount() const
 *   (je 1) ... bezier index
 */
 
-u32* GlyphGrid::getRaw(u32 &size) const
+u32* GlyphGrid::getRaw(u32 &size, u32 c) const
 {
 	// count indices per cell
 	u32* countJeCell = new u32[mGridSize*mGridSize];
-	u32 count = 0;
+	u32 indicesSumCount = 0;
+	u16 filledGridFieldsCount = 0;
 	for (int iGridCell = 0; iGridCell < mGridSize*mGridSize; iGridCell++) {
 		countJeCell[iGridCell] = mGridNodes[iGridCell].mIndices.size();
-		count += countJeCell[iGridCell];
+		indicesSumCount += countJeCell[iGridCell];
+		if (countJeCell[iGridCell]) filledGridFieldsCount++;
 	}
 	// create out buffer
-	size = mGridSize*mGridSize * 2 + count;
+	size = indicesSumCount + filledGridFieldsCount*3+1;
 	u32* rawData = new u32[size];
 	
 	// fill out buffer
-	int index = mGridSize*mGridSize;
+	int index = filledGridFieldsCount * 2+1;
+	int rawDataCursor = 0;
+	rawData[rawDataCursor++] = filledGridFieldsCount * 2;
 	for (int iGridCell = 0; iGridCell < mGridSize*mGridSize; iGridCell++) {
 		//assert(index+ countJeCell[iGridCell]+1 < size);
 		// start index
-		assert(index < size);
-		rawData[iGridCell] = index;
-		// count in cell
+		if (countJeCell[iGridCell]) {
+			assert(rawDataCursor+1 < filledGridFieldsCount * 3);
+			rawData[rawDataCursor++] = iGridCell;
+			rawData[rawDataCursor++] = index;
+			assert(index+ countJeCell[iGridCell] < size);
+			rawData[index++] = countJeCell[iGridCell];
+			std::list<int> indices = mGridNodes[iGridCell].mIndices;
+			for (std::list<int>::iterator it = indices.begin(); it != indices.end(); it++) {
+				rawData[index++] = *it;
+			}
+		}
 		
-		rawData[index++] = countJeCell[iGridCell];
-		std::list<int> indices = mGridNodes[iGridCell].mIndices;
-		for (std::list<int>::iterator it = indices.begin(); it != indices.end(); it++) {
-			assert(index < size);
-			rawData[index++] = *it;
+	}
+	//return rawData;
+	//for debugging 
+	std::stringstream ss;
+	ss << "data/grid_cell_" << c << ".txt";
+	std::ofstream myfile;
+	myfile.open(ss.str());
+	u16 headBlockSize = rawData[0];
+	for (int i = 1; i < size; ) {
+		if (i < headBlockSize) {
+			myfile << rawData[i++] << ": " << rawData[i++] << std::endl;
+		}
+		else {
+			u16 count = rawData[i++];
+			myfile << count << ": ";
+			for (int j = 0; j < count; j++) {
+				if (j > 0) myfile << ", ";
+				myfile << rawData[i++];
+			}
+			myfile << std::endl;
 		}
 	}
+	myfile.close();
+	//*/
 	return rawData;
 }
 
@@ -130,6 +165,10 @@ GlyphCalculate::GlyphCalculate()
 GlyphCalculate::~GlyphCalculate()
 {
 	DR_SAVE_DELETE_ARRAY(mBezierIndices);
+	for (BezierCurveList::iterator it = mBezierKurves.begin(); it != mBezierKurves.end(); it++) {
+		DR_SAVE_DELETE(*it);
+	}
+	mBezierKurves.clear();
 }
 
 void GlyphCalculate::addPointToBezier(DRVector2i p, int conturIndex, bool onCurve /*= true*/)
@@ -167,7 +206,8 @@ DRReturn GlyphCalculate::loadGlyph(FT_ULong c, FT_Face face)
 		LOG_ERROR("error by loading glyph", DR_ERROR);
 	}
 	FT_GlyphSlot slot = face->glyph;
-	FT_BBox boundingBox = face->bbox;
+	//FT_BBox boundingBox = face->bbox;
+	mGlyphMetrics = slot->metrics;
 
 	// process outline of glyph
 	if (slot->format == FT_GLYPH_FORMAT_OUTLINE) {
@@ -179,11 +219,40 @@ DRReturn GlyphCalculate::loadGlyph(FT_ULong c, FT_Face face)
 		short minX = 1000, minY = 1000;
 		for (short i = 0; i < pointCount; i++) {
 			FT_Vector p = slot->outline.points[i];
+			if (p.x != (long)((short)p.x) || p.y != (long)((short)p.y)) {
+				LOG_ERROR("point value exceed short data range!", DR_ERROR);
+			}
 			maxX = max(maxX, p.x);
 			maxY = max(maxY, p.y);
 			minX = min(minX, p.x);
 			minY = min(minY, p.y);
 		}
+		mBoundingBox = DRBoundingBox(DRVector2(minX, minY), DRVector2(maxX, maxY));
+		//EngineLog.writeToLog("glyph bounding box size: min: %dx%d (%dx%d),  max: %dx%d (%dx%d)",
+			//boundingBox.xMin, boundingBox.yMin, minX, minY, boundingBox.xMax, boundingBox.yMax, maxX, maxY);
+
+		// debug  print out character infos
+		//printf("family: %s, style name: %s, char: %c\n", face->family_name, face->style_name, (char)c);
+		std::string logFilename = "fontDebug/";
+		for (int i = 0; i < strlen(face->family_name); i++) {
+			char c = face->family_name[i];
+			if (c == ' ')
+				c = '_';
+			logFilename += c;
+		}
+		logFilename += "_";
+		logFilename += face->style_name;
+		logFilename += ".txt";
+		DRFile file(logFilename.data(), "at");
+		char buffer[512]; memset(buffer, 0, 512);
+		FT_Glyph_Metrics m = slot->metrics;
+		// Advanced White (horiAdvance): space for Glyph (with empty space left and right)
+		// horizontal Bearing: space after font graphics start
+		// details: https://www.freetype.org/freetype2/docs/glyphs/glyphs-3.html
+		sprintf(buffer, "%c\nBounding Box: min: %dx%d max: %dx%d\nwidth: %d, height: %d\nHorizontal Bearing: %dx%d advance: %d\n\n",
+				(char)c, minX, minY, maxX, maxY, m.width, m.height, m.horiBearingX, m.horiBearingY, m.horiAdvance);
+		file.write(buffer, sizeof(char), strlen(buffer));
+		// */
 
 		for (short contur = 0; contur < conturCount; contur++) {
 			short start = 0;
@@ -207,14 +276,16 @@ DRReturn GlyphCalculate::loadGlyph(FT_ULong c, FT_Face face)
 				bool thirdOrderControlPoint = true;
 				pointType = "Off Curve";
 				//int index = p.x * 4 + p.y*textureSize.x * 4;
-				if (f & 1 == 1) {
-					addPointToBezier(DRVector2i(p.x - boundingBox.xMin, p.y - boundingBox.yMin), contur, true);
+				if ((f & 1) == 1) {
+					//addPointToBezier(DRVector2i(p.x - boundingBox.xMin, p.y - boundingBox.yMin), contur, true);
+					addPointToBezier(DRVector2i(p.x, p.y), contur, true);
 					controlPoint = false;
 					pointType = "On Curve";
 				}
 				else {
-					addPointToBezier(DRVector2i(p.x - boundingBox.xMin, p.y - boundingBox.yMin), contur, false);
-					if (f & 2 == 2) {
+					//addPointToBezier(DRVector2i(p.x - boundingBox.xMin, p.y - boundingBox.yMin), contur, false);
+					addPointToBezier(DRVector2i(p.x, p.y), contur, false);
+					if ((f & 2) == 2) {
 						// third order bezier arc control point
 						pointType += ", third order bezier arc control point";
 					}
@@ -224,14 +295,32 @@ DRReturn GlyphCalculate::loadGlyph(FT_ULong c, FT_Face face)
 						pointType += ", second order control point";
 					}
 				}
-				if (f & 4 == 4) {
+				if ((f & 4) == 4) {
 					// bits 5-7 contain drop out mode
 				}
 			}
 
-			addPointToBezier(DRVector2i(firstPoint.x - boundingBox.xMin, firstPoint.y - boundingBox.yMin), contur, true);
+			//addPointToBezier(DRVector2i(firstPoint.x - boundingBox.xMin, firstPoint.y - boundingBox.yMin), contur, true);
+			addPointToBezier(DRVector2i(firstPoint.x, firstPoint.y), contur, true);
 		}
 
+		//mBezierKurvesDebug = mBezierKurves;
+		for (BezierCurveList::iterator it = mBezierKurves.begin(); it != mBezierKurves.end(); it++) {
+			
+			if (false && (*it)->getNodeCount() > 4) {
+				//printf("node Count over 4: %d\n", (*it)->getNodeCount());
+				DRBezierCurve* secondBezier = new DRBezierCurve((*it)->getNodeCount());
+				DRBezierCurve* firstBezier = new DRBezierCurve(**it);
+				firstBezier->splitWithDeCasteljau(*secondBezier, true);
+				
+				mBezierKurvesDebug.push_back(firstBezier);
+				mBezierKurvesDebug.push_back(secondBezier);
+			}
+			else {
+				mBezierKurvesDebug.push_back(new DRBezierCurve(**it));
+			}
+			
+		}
 		// calculate conic bezier curves
 		bool reduktionCalled = true;
 		while (reduktionCalled) {
@@ -239,11 +328,19 @@ DRReturn GlyphCalculate::loadGlyph(FT_ULong c, FT_Face face)
 			for (BezierCurveList::iterator it = mBezierKurves.begin(); it != mBezierKurves.end(); it++) {
 				if ((*it)->getNodeCount() > 3) {
 					reduktionCalled = true;
-					DRBezierCurve* bez = (*it)->gradreduktionAndSplit();
-					if (bez) {
-						it = mBezierKurves.insert(++it, bez);
+					//DRBezierCurve* secondBezier = new DRBezierCurve((*it)->getNodeCount());
+					//(*it)->splitWithDeCasteljau(*secondBezier, false);
+					// TODO: change code, make first all splits and then all gradreduktions, it will be more accurate
+					DRBezierCurve* bez12 = (*it)->gradreduktionAndSplit();
+					//DRBezierCurve* bez22 = secondBezier->gradreduktionAndSplit();
+					if (bez12) {
+						it = mBezierKurves.insert(++it, bez12);
 						//it++;
 					}
+					/*it = mBezierKurves.insert(++it, secondBezier);
+					if (bez22) {
+						it = mBezierKurves.insert(++it, bez22);
+					}*/
 				}
 			}
 		}
@@ -267,6 +364,10 @@ DRReturn GlyphCalculate::calculateGrid(DRFont* parent, Glyph* glyph)
 	assert(parent->mBezierCurveBuffer->sizePerIndex == sizeof(u16));
 	assert(parent->mPointBuffer->sizePerIndex == sizeof(DRVector2));
 
+	glyph->setBoundingBox(mBoundingBox);
+	glyph->setGlyphMetrics(mGlyphMetrics);
+	glyph->setRawBezierCurves(mBezierKurvesDebug);
+
 	DRVector2 temp[3];
 	u16* bezierData = (u16*)parent->mBezierCurveBuffer->data;
 	DRVector2* pointData = (DRVector2*)parent->mPointBuffer->data;
@@ -279,5 +380,15 @@ DRReturn GlyphCalculate::calculateGrid(DRFont* parent, Glyph* glyph)
 		}
 		glyph->addToGrid(mBezierIndices[i], temp, bezierIndices[0]);
 	}
+	
 	return DR_OK;
+}
+
+DRReturn Glyph::addToGrid(u16 bezierIndex, DRVector2* vectors, u8 vectorCount)
+{
+	DRVector2* temp = new DRVector2[vectorCount];
+	for (int i = 0; i < vectorCount; i++) {
+		temp[i] = (vectors[i] - mBoundingBox.getMin()) / (DRVector2(mBoundingBox.getWidth(), mBoundingBox.getHeight())*1.1f);
+	}
+	return mGlyphGrid.addToGrid(bezierIndex, temp, vectorCount); 
 }

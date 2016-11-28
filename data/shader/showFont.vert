@@ -5,7 +5,7 @@ layout(location = 0) in vec3 vertices;
 //layout(location = 1) in vec4 color;
 //out vec4 colour;
 uniform mat4 view;
-uniform float time;
+uniform float fontColor;
 void main()
 {
 	//gl_Position    = projection * modelview * gl_Vertex;//projection * modelview * gl_Vertex;

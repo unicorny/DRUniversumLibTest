@@ -3,6 +3,10 @@
 
 #include "controller/CPUSheduler.h"
 
+#include "view/Material.h"
+#include "controller/ShaderManager.h"
+#include "controller/BindToRenderer.h"
+
 using namespace UniLib;
 
 //********************************************************************
@@ -16,6 +20,10 @@ FontManager::FontManager(controller::CPUSheduler* loadingThread /* = NULL*/)
 		mLoadingScheduler = new controller::CPUSheduler(2, "fontLoad");
 		mCreatedByMySelf = true;
 	}
+	// create Material 
+	UniLib::controller::ShaderManager* shaderM = UniLib::controller::ShaderManager::getInstance();
+	mMaterial = UniLib::view::MaterialPtr(UniLib::g_RenderBinder->newMaterial());
+	mMaterial->setShaderProgram(shaderM->getShaderProgram("showFont.vert", "showFont.frag"));
 	/*FT_Error error = FT_Init_FreeType(&mFreeTypeLibrayHandle);
 	if (error)
 	{

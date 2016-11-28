@@ -55,6 +55,9 @@ DRReturn Shader::init(const char* shaderFile, UniLib::model::ShaderType shaderTy
 }
 DRReturn Shader::init(unsigned char* shaderFileInMemory, UniLib::model::ShaderType shaderType)
 {
+	if (!shaderFileInMemory) {
+		LOG_ERROR("no string in memory, couldn't find shader?", DR_ERROR);
+	}
 	Uint32 startTicks = SDL_GetTicks();
 	const char *shaderStrings[1];
 	mType = shaderType;

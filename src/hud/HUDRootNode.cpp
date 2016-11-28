@@ -23,7 +23,10 @@ namespace HUD {
 	{
 		assert(mMaterial.getResourcePtrHolder());
 		mMaterial->bind();
-		if (mParent->getTextFont() && mParent->getTextGeom() && mParent->getTextGeom()->isGeometrieReady()) mParent->getTextGeom()->setStaticGeometrie();
+		if (mParent->getTextFont() && mParent->getTextGeom() && mParent->getTextGeom()->isGeometrieReady()) 
+			mParent->getTextGeom()->setStaticGeometrie();
+		if(mParent->getTextFont() && mParent->getTextGeom2() && mParent->getTextGeom2()->isGeometrieReady())
+			mParent->getTextGeom2()->setStaticGeometrie();
 		//mParent->getTextFont()->bind();
 		/*UniLib::view::Geometrie*geo = controller::BaseGeometrieManager::getInstance()->getGeometrie(controller::BASE_GEOMETRIE_PLANE);
 		if (geo->isReady()) {
@@ -49,7 +52,8 @@ namespace HUD {
 	// **************************************************************
 
 	RootNode::RootNode()
-		: Thread("HUD"), ContainerNode("ROOT", NULL), mExitCalled(false), mRenderCall(NULL), mFontManager(NULL), mFont(NULL), mTextGeom(NULL)
+		: Thread("HUD"), ContainerNode("ROOT", NULL), mExitCalled(false), mRenderCall(NULL), mFontManager(NULL), mFont(NULL), 
+		mTextGeom(NULL), mTextGeom2(NULL)
 	{
 #ifdef _UNI_LIB_DEBUG
 		mRendererCasted->setName("HUD::RootNode Renderer");
@@ -62,6 +66,7 @@ namespace HUD {
 			controller::GPUScheduler::getInstance()->unregisterGPURenderCommand(mRenderCall, controller::GPU_SCHEDULER_COMMAND_AFTER_RENDERING);
 			DR_SAVE_DELETE(mRenderCall);
 		}
+		DR_SAVE_DELETE(mTextGeom);
 		//DR_SAVE_DELETE(mFont);
 		DR_SAVE_DELETE(mFontManager);
 
@@ -137,7 +142,6 @@ namespace HUD {
 
 	void RootNode::exit()
 	{
-		
 		//threadLock();
 		mExitCalled = true;
 		//threadUnlock();
@@ -168,8 +172,12 @@ namespace HUD {
 
 				// create geom
 				mTextGeom = new TextGeom;
+				mTextGeom2 = new TextGeom;
 				mTextGeom->init();
-				mTextGeom->buildGeom(mFont->getVerticesForGlyph(L'ä'));
+				mTextGeom2->init(true);
+				mTextGeom->buildGeom(mFont->getVerticesForGlyph(L'0'));
+				mTextGeom2->buildGeom(mFont->getVerticesForGlyph(L'0', true));
+
 				//mFont->loadGlyph(-61 | (-92 << 8));
 			}
 

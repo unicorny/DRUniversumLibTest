@@ -28,7 +28,7 @@ public:
 	TextGeom();
 	~TextGeom();
 
-	DRReturn init();
+	DRReturn init(bool compare = false);
 	DRReturn buildGeom(std::queue<DRVector2> vertices);
 
 	//	__inline__ UniLib::view::TexturePtr getTexture() { return mTexture; }

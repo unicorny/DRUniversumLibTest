@@ -14,7 +14,9 @@ namespace UniLib {
 	}
 	namespace view {
 		class Texture;
+		class Material;
 		typedef DRResourcePtr<Texture> TexturePtr;
+		typedef DRResourcePtr<Material> MaterialPtr;
 	}
 }
 
@@ -79,10 +81,13 @@ namespace HUD {
 
 		virtual RootNode* getRootNode() { return mParent->getRootNode(); }
 
+		__inline__ void addToRender(Element* ele, UniLib::view::MaterialPtr mat) { mRendererCasted->addToRender(ele, mat); }
+
 	protected:
 
-		virtual const DRBoundingBoxi calculateSize();
+		virtual DRBoundingBox calculateSize();
 		UniLib::view::TexturePtr getTexture() { return mRendererCasted->getTexture(); }
+		
 
 		bool mMustRerender;
 		UniLib::model::Position mPosition;
@@ -93,8 +98,10 @@ namespace HUD {
 		ContainerNodeMap mContainerNodes;
 		ElementNodeMap mElementNodes;
 		ContainerNode* mParent;
+		// render
 		RenderElementsToTexture* mRendererCasted;
 		UniLib::controller::TaskPtr mRenderer;
+
 	};
 }
 

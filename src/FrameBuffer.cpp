@@ -11,18 +11,20 @@ DRReturn FrameBuffer::setup()
 		glGenFramebuffers(1, &mFrameBufferId);
 	}
 	glBindFramebuffer(GL_FRAMEBUFFER, mFrameBufferId);
+	glBindTexture(GL_TEXTURE_2D, 0);
 	glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0,
 		GL_TEXTURE_2D, mTexture->getTextureId(), 0);
 	GLenum draw_bufs[] = { GL_COLOR_ATTACHMENT0 };
 	glDrawBuffers(1, draw_bufs);
 	GLenum ret = GL_FRAMEBUFFER_COMPLETE;
 	ret = glCheckFramebufferStatus(GL_FRAMEBUFFER);
+	DRVector2i size = mTexture->getTextureSize();
 	if (ret != GL_FRAMEBUFFER_COMPLETE)
 	{
 		EngineLog.writeToLog("Error by Check Framebuffer Status: %s", getFrameBufferEnumName(ret));
 		LOG_ERROR("Error by setupFrameBuffer", DR_ERROR);
 	}
-	DRVector2i size = mTexture->getTextureSize();
+	
 	glViewport(0, 0, size.x, size.y);
 	return DR_OK;
 }

@@ -69,6 +69,24 @@ DRReturn DRFont::loadAll()
 	const u32* glyphMap = mParent->getGlyphMap(&glyphMapSize);
 	GlyphCalculate* calculator = new GlyphCalculate[glyphMapSize];
 	u32 bezierCurveBufferCount = 0;
+	FT_BBox ff_boundingBox = font->bbox;
+	
+	std::string logFilename("fontDebug/");
+	for (int i = 0; i < strlen(font->family_name); i++) {
+		char c = font->family_name[i];
+		if (c == ' ')
+			c = '_';
+		logFilename += c;
+	}
+	logFilename += "_";
+	logFilename += font->style_name;
+	logFilename += ".txt";
+	DRFile file(logFilename.data(), "wt");
+	char buffer[512]; memset(buffer, NULL, 512);
+	sprintf(buffer, "ff bounding box: min: %dx%d max: %dx%d\n\n", ff_boundingBox.xMin, ff_boundingBox.yMin, ff_boundingBox.xMax, ff_boundingBox.yMax);
+	file.write(buffer, sizeof(char), strlen(buffer));
+	file.close();
+	
 
 	//EngineLog.writeToLog("[DRFont::loadAll] prepare Font: %d ms", SDL_GetTicks() - startTicks);
 	startTicks = SDL_GetTicks();
@@ -103,7 +121,7 @@ DRReturn DRFont::loadAll()
 	}
 	mPointBuffer = new DataBuffer(sizeof(DRVector2), pointCountShort);
 	DRVector2* vectors = (DRVector2*)mPointBuffer->data;
-	DRVector2 vMax(0.0f), vMin(1000.0f);
+	DRVector2 vMax(0.0f), vMin(10000.0f);
 	for (PointIndexMap::iterator it = mPointIndexMap.begin(); it != mPointIndexMap.end(); it++) {
 		for (IndexMap::iterator it2 = it->second.begin(); it2 != it->second.end(); it2++) {
 			DRVector2 v(it->first, it2->first);
@@ -126,13 +144,22 @@ DRReturn DRFont::loadAll()
 	// check size
 	u16 bezierCountShort = bezierCurveBufferCount;
 	assert(bezierCurveBufferCount > mBezierCurveCount);
-	if ((u32)bezierCountShort != bezierCurveBufferCount) {
-		LOG_ERROR("bezier count exceed short data range!", DR_ERROR);
-	}
+
+	u16* bezierIndices = NULL;
+	//u32* bezierIndices32 = NULL;
 	// malloc
-	mBezierCurveBuffer = new DataBuffer(sizeof(u16), bezierCountShort);
+	if ((u32)bezierCountShort != bezierCurveBufferCount) {
+		printf("font: %s, count: %d\n", logFilename.data(), bezierCurveBufferCount);
+		LOG_ERROR("bezier count exceed short data range!", DR_ERROR);
+		//mBezierCurveBuffer = new DataBuffer(sizeof(u32), bezierCurveBufferCount);
+		//bezierIndices32 = (u32*)mBezierCurveBuffer->data;
+	}
+	else {
+		mBezierCurveBuffer = new DataBuffer(sizeof(u16), bezierCountShort);
+		bezierIndices = (u16*)mBezierCurveBuffer->data;
+	}
 	int index = 0;
-	u16* bezierIndices = (u16*)mBezierCurveBuffer->data;
+	
 	std::map< u16, u16> newBezierIndices;
 	// add and update indices
 	for (BezierCurve64Map::iterator it = mBezierCurvesMap.begin(); it != mBezierCurvesMap.end(); it++) {
@@ -161,8 +188,8 @@ DRReturn DRFont::loadAll()
 
 	// calculate scale factor
 	DRBoundingBox boundingBox(vMin, vMax);
-	DRVector2 scaleVector = boundingBox.getMax() - boundingBox.getMin();
-	float scaleF = max(boundingBox.getMax().x, boundingBox.getMax().y)*1.1f;
+	DRVector2 scaleVector = (boundingBox.getMax() - boundingBox.getMin()) * 1.01f;
+	float scaleF = max(boundingBox.getMax().x, boundingBox.getMax().y);
 	float scaleInteger = 0;
 	modf(scaleF, &scaleInteger);
 	//mFinalBezierCurves.scale(DRVector2(scaleInteger));
@@ -170,26 +197,33 @@ DRReturn DRFont::loadAll()
 
 	// scale points
 	for (u16 iPoint = 0; iPoint < pointCountShort; iPoint++) {
-		vectors[iPoint] /= scale;
+		//vectors[iPoint] /= scale;
+		//vectors[iPoint] = (vectors[iPoint] - boundingBox.getMin()) / scaleVector;
 	}
 	//EngineLog.writeToLog("[DRFont::loadAll] scale points: %d ms", SDL_GetTicks() - startTicks);
 	startTicks = SDL_GetTicks();
 
+	u32** rawDataArray = new u32*[glyphMapSize];
+	u32* rawDataSizeArray = new u32[glyphMapSize];
 	u32 gridBufferSize = 0;
+
 	// create glyphs
 	for (int iGlyph = 0; iGlyph < glyphMapSize; iGlyph++) {
 		Glyph* g = new Glyph;
 		calculator[iGlyph].calculateGrid(this, g);
-		//int bezierCurvesCount = calculator[iGlyph].getBezierKurves()->size();
+		rawDataArray[iGlyph] = g->getGridRawData(rawDataSizeArray[iGlyph], glyphMap[iGlyph]);
+		gridBufferSize += rawDataSizeArray[iGlyph];
+		/*
+		int bezierCurvesCount = calculator[iGlyph].getBezierKurves()->size();
 		int gridIndexCount = g->getGridIndexCount();
-		gridBufferSize += GLYPHE_GRID_SIZE*GLYPHE_GRID_SIZE * 2 + gridIndexCount;
-		//EngineLog.writeToLog("[DRFont::loadingAll] gridsize for glyph: %d: %d Byte (%d/%d)",
-			//iGlyph, GLYPHE_GRID_SIZE*GLYPHE_GRID_SIZE * 2 + gridIndexCount, gridIndexCount, bezierCurvesCount);
-//		g->init(calculator[iGlyph]);
+		EngineLog.writeToLog("[DRFont::loadingAll] gridsize for glyph: %d: %d Byte (%d/%d)",
+			glyphMap[iGlyph], rawDataSizeArray[iGlyph], gridIndexCount, bezierCurvesCount);
+		//*/
 		mGlyphenMap.insert(GlyphenPair(glyphMap[iGlyph], g));
 	}
 	//EngineLog.writeToLog("[DRFont::loadAll] calculate grid: %d ms", SDL_GetTicks() - startTicks);
 	startTicks = SDL_GetTicks();
+	
 	// create grid buffer
 	u16 shortGridBufferSize = gridBufferSize;
 	if ((u32)shortGridBufferSize != gridBufferSize) {
@@ -198,29 +232,32 @@ DRReturn DRFont::loadAll()
 	mIndexBuffer = new DataBuffer(sizeof(u16), gridBufferSize);
 	u16* data = (u16*)mIndexBuffer->data;
 	index = 0;
-	// fill grid buffer
+	u32 rawIndex = 0;
 	for (GlyphenMap::iterator it = mGlyphenMap.begin(); it != mGlyphenMap.end(); it++) {
-		assert(index < gridBufferSize);
-		u32 size = 0;
-		u32* rawData = it->second->getGridRawData(size);
-		assert(size + index <= gridBufferSize);
-		assert(rawData != NULL);
-		it->second->setDataBufferIndex(index);
-		for (u32 iData = 0; iData < size; iData++) {
-			u16 shortRawData = rawData[iData];
-			assert((u32)shortRawData == rawData[iData]);
-			data[index++] = shortRawData;
+		assert(rawIndex < gridBufferSize);
+		it->second->setDataBufferIndex(rawIndex);
+		assert(index < mGlyphenMap.size());
+		for (u32 iData = 0; iData < rawDataSizeArray[index]; iData++) {
+			u16 shortRawData = rawDataArray[index][iData];
+			assert((u32)shortRawData == rawDataArray[index][iData]);
+			data[rawIndex++] = shortRawData;
 		}
-		DR_SAVE_DELETE_ARRAY(rawData);
+		DR_SAVE_DELETE_ARRAY(rawDataArray[index]);
+		index++;
 	}
+	DR_SAVE_DELETE_ARRAY(rawDataArray);
+	DR_SAVE_DELETE_ARRAY(rawDataSizeArray);
+	DR_SAVE_DELETE_ARRAY(calculator);
 	float summe = (float)((gridBufferSize + mBezierCurveCount) * sizeof(u16) + mPointCount * sizeof(DRVector2)) / 1024.0f;
-	EngineLog.writeToLog("[DRFont::loadAll] statistic:\n\tindex buffer size: %.3f kByte (%d)\n\tpoint buffer size: %.3f kByte (%d)\n\tbezier curve buffer size: %.3f kByte (%d)\n\tsave: %.3f kByte\n\tSumme: %.3f kByte",
+	EngineLog.writeToLog("[DRFont::loadAll] statistic:\n\tindex buffer size: %.3f kByte (%d)\n\tpoint buffer size: %.3f kByte (%d)\n\tbezier curve buffer size: %.3f kByte (%d)\n\tSumme: %.3f kByte",
 		(float)gridBufferSize*(float)sizeof(u16)/1024.0f, gridBufferSize,
 		(float)mPointCount*(float)sizeof(DRVector2)/1024.0f, mPointCount,
-		(float)mBezierCurveCount*(float)sizeof(u16)/1024.0f, mBezierCurveCount,
-		(float)(mGlyphenMap.size()*GLYPHE_GRID_SIZE*GLYPHE_GRID_SIZE)/1024.0f,
+		(float)bezierCurveBufferCount*(float)sizeof(u16)/1024.0f, bezierCurveBufferCount,
 		summe);
 		//*/
+
+	
+
 	setLoadingState(LOADING_STATE_FULLY_LOADED);
 
 	//EngineLog.writeToLog("[DRFont::loadAll] sum: %d ms", SDL_GetTicks() - gStartTicks);
@@ -228,26 +265,48 @@ DRReturn DRFont::loadAll()
 	return DR_OK;
 }
 
-std::queue<DRVector2> DRFont::getVerticesForGlyph(u32 c)
+std::queue<DRVector2> DRFont::getVerticesForGlyph(u32 c, bool raw/* = false*/)
 {
+	Uint32 startTicks = SDL_GetTicks();
 	std::queue<DRVector2> outQueue;
+
+	// preparation for control point calculation
+	// calculate steps in between (in percent)
+	const int control_points_count = 80;
+	DRVector2 controlPoints[control_points_count];
+	float f[control_points_count];
+	for (int i = 0; i < control_points_count; i++) {
+		f[i] = (float)i / (float)control_points_count;
+	}
 	//return outQueue;
 	// get g
 	const Glyph* g = getGlyph(c);
 	assert(g != NULL);
 
+	if (raw) {
+		const BezierCurveList& curves = g->getRawBezierCurves();
+		for (BezierCurveList::const_iterator it = curves.begin(); it != curves.end(); it++) {
+			(*it)->calculatePointsOnCurve(f, control_points_count, controlPoints);
+			for (int i = 0; i < control_points_count; i++) {
+				outQueue.push(controlPoints[i]);
+			}
+		}
+		return outQueue;
+	}
 	assert(mIndexBuffer->sizePerIndex == sizeof(u16));
 	u16* indexBuffer = (u16*)mIndexBuffer->data;
-	u16* startIndex = &indexBuffer[g->getDataBufferIndex()+GLYPHE_GRID_SIZE*GLYPHE_GRID_SIZE];
+	u16* startIndex = &indexBuffer[g->getDataBufferIndex()];
 	// get indices
 	std::list<int> bezierCurveIndices;
-	int iGridCell = 0;
-	while (iGridCell < GLYPHE_GRID_SIZE*GLYPHE_GRID_SIZE) {
-		int s = startIndex[iGridCell++];
-		for (int iV = 1; iV <= s; iV++) {
-			bezierCurveIndices.push_back(startIndex[iGridCell++]);
+	u16 headSize = startIndex[0];
+	for (int iHead = 1; iHead < headSize; iHead+=2) {
+		u16 indexCountIndex = startIndex[iHead + 1];
+		u16 indexCount = startIndex[indexCountIndex];
+		for (int iIndice = 0; iIndice < indexCount; iIndice++) {
+			bezierCurveIndices.push_back(startIndex[indexCountIndex+iIndice+1]);
 		}
 	}
+	EngineLog.writeToLog("bezier curves indices count from grid: %d", bezierCurveIndices.size());
 	// sort to kill doublets
 	//bezierCurveIndices.sort();
 
@@ -262,23 +321,25 @@ std::queue<DRVector2> DRFont::getVerticesForGlyph(u32 c)
 		//if (lastIndex == *it) continue;
 		lastIndex = *it;
 		int iCountPoints = bezierCurveIndicesBuffer[lastIndex];
+		if (!iCountPoints) {
+			LOG_WARNING("iCountPoints is zero");
+			EngineLog.writeToLog("before: %d, after: %d", bezierCurveIndicesBuffer[lastIndex - 1], bezierCurveIndicesBuffer[lastIndex + 1]);
+			continue;
+		}
 		DRBezierCurve curve(iCountPoints);
 		for (int i = 1; i <= iCountPoints; i++) {
 			//outQueue.push(pointBuffer[bezierCurveIndicesBuffer[lastIndex+i]]);
 			curve[i - 1] = pointBuffer[bezierCurveIndicesBuffer[lastIndex + i]];
 		}
-		const int control_points_count = 40;
-		DRVector2 controlPoints[control_points_count];
-		float f[control_points_count];
-		for (int i = 0; i < control_points_count; i++) {
-			f[i] = (float)i / (float)control_points_count;
-		}
+		
 		curve.calculatePointsOnCurve(f, control_points_count, controlPoints);
 		for (int i = 0; i < control_points_count; i++) {
 			outQueue.push(controlPoints[i]);
 		}
 		
 	}
+	EngineLog.writeToLog("[DRFont::getVerticesForGlyph] %d ms, geometrie size in memory: %.3f kByte (%d)",
+		SDL_GetTicks()- startTicks, (float)(outQueue.size()*sizeof(DRVector2))/1024.0f, outQueue.size());
 	return outQueue;
 }
 

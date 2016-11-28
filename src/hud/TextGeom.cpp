@@ -11,6 +11,7 @@
 #include "Geometrie.h"
 #include "model/geometrie/BaseGeometrie.h"
 #include "model/geometrie/Plane.h"
+#include "UniformSet.h"
 
 using namespace UniLib;
 
@@ -22,15 +23,21 @@ TextGeom::TextGeom()
 
 TextGeom::~TextGeom()
 {
-
 }
 
-DRReturn TextGeom::init()
+DRReturn TextGeom::init(bool compare /*= false*/)
 {
 	if (!mGeometrie) {
 		mGeometrie = new view::VisibleNode;
 		view::MaterialPtr materialPtr = view::MaterialPtr(new Material);
 		materialPtr->setShaderProgram(controller::ShaderManager::getInstance()->getShaderProgram("showFont.vert", "showFont.frag"));
+		UniformSet* uniform = new UniformSet;
+		if(!compare)
+			uniform->setUniform("fontColor", 0.0f);
+		else 
+			uniform->setUniform("fontColor", 1.0f);
+		
+		materialPtr->setUniformSet(uniform);
 		mGeometrie->setMaterial(materialPtr);
 
 		mBaseGeo = new model::geometrie::BaseGeometrie;
@@ -41,8 +48,12 @@ DRReturn TextGeom::init()
 		view::GeometriePtr ptr(geo);
 		mGeometrie->setGeometrie(ptr);
 		model::Position* pos = mGeometrie->getPosition();
-		pos->setScale(DRVector3(100.0f));
-		pos->setPosition(DRVector3(-60.0f, -40.0f, -80.0f));
+		//pos->setScale(DRVector3(75.0f, 100.0f, 100.0f));
+		pos->setScale(DRVector3(0.075f, 0.1f, 0.1f));
+		if (compare) {
+			pos->setPosition(DRVector3(0.0f, 0.0f, -10.0f));
+		}
+		//pos->setPosition(DRVector3(-60.0f, -40.0f, -80.0f));
 
 	}
 	//DRVector2i textureSize(pow(2, ceil(log2(boundingBox.xMax-boundingBox.xMin))), pow(2, ceil(log2(boundingBox.yMax-boundingBox.yMin))));

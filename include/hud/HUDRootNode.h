@@ -54,13 +54,15 @@ namespace HUD {
 		__inline__ FontManager* getFontManager() { return mFontManager; }
 		__inline__ DRFont* getTextFont() { return mFont; }
 		__inline__ TextGeom* getTextGeom() { return mTextGeom; }
+		__inline__ TextGeom* getTextGeom2() { return mTextGeom2; }
+		__inline__ DRVector2i getScreenResolution() { return mScreenResolution; }
 
 		DRReturn loadFromConfig(std::string jsonfConfigString);
 
-		
 	protected:
 
 		virtual RootNode* getRootNode() { return this; }
+		
 
 		//! move function for HUD, independent from rest of game
 		//! \brief will be called every time from thread, when condSignal was called
@@ -81,6 +83,7 @@ namespace HUD {
 		FontManager* mFontManager;
 		DRFont* mFont;
 		TextGeom* mTextGeom;
+		TextGeom* mTextGeom2;
 
 	};
 

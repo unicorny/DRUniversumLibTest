@@ -67,9 +67,28 @@ void UniformSet::updateUniforms(model::ShaderProgram* program)
 	}
 	for(std::map<HASH, UniformEntry*>::iterator it = mUniformEntrys.begin(); it != mUniformEntrys.end(); it++) {
 		UniformEntry* entry = it->second;
-		if(entry->locations.find(program->getID()) == entry->locations.end()) continue;
+		ShaderProgram* shader = dynamic_cast<ShaderProgram*>(program);
+		// adding location if not yet done
+		if (entry->locations.find(program->getID()) == entry->locations.end()) {
+			GLint loc = glGetUniformLocation(shader->getProgram(), entry->name.data());
+			DRReturn result = addUniformMapping(entry->name.data(), (void*)loc, program->getID());
+			if (result || DRGrafikError("error by getting uniform location")) {
+				LOG_WARNING("Error by addLocationToUniform", DR_ERROR);
+				continue;
+			}
+		}
 		UniformEntry::Location* l = &entry->locations[program->getID()];
-		if(!l->dirty) continue;
+		// check if this value was already set
+		if (!l->dirty) {
+		/*	if (entry->isFloat() && entry->getArraySize() <= 4) {
+				GLfloat temp[4];
+				// way to slow!!!
+				//glGetUniformfv(shader->getProgram(), (int)l->location, temp);
+				//printf("value: %f\n", temp[0]);
+			}*/
+			//continue;
+		}
+		//if(!l->dirty) continue;
 		void (*ffunc)(GLint, GLfloat*) = NULL;
 		void (*ifunc)(GLint, GLint*) = NULL;
 		if(entry->isFloat()) {
@@ -89,8 +108,9 @@ void UniformSet::updateUniforms(model::ShaderProgram* program)
 			}
 		}
 		
-		
 		if(entry->isFloat()) {
+			//if(entry->name != std::string("time") && entry->name != std::string("view")) 
+				//printf("set uniform: %s to: %f\n", entry->name.data(), entry->floatArray[0]);
 			ffunc((int)(l->location), entry->floatArray);
 		} else {
 			ifunc((int)(l->location), entry->intArray);

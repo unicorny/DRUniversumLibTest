@@ -13,6 +13,7 @@ namespace UniLib {
 	namespace controller {
 		class CPUScheduler;
 	}
+	
 }
 
 
@@ -31,10 +32,11 @@ namespace UniLib {
  * 
  * grid buffer:
  * 
- * (foreach glyph)
- *  (foreach grid cell)
- *   (1) start index
- *  (foreach grid cell)
+ * headSize (u16 count)
+ * (foreach headsize)
+ *  (1) gridIndex
+ *  (1) indices start index
+ * (foreach filled grid cell)
  *   (1) index count
  *   (je 1) ... bezier index
  * 
@@ -60,7 +62,7 @@ public:
 
 	
 	__inline__ const Glyph* getGlyph(u32 c) { return mGlyphenMap[c]; }
-	std::queue<DRVector2> getVerticesForGlyph(u32 c);
+	std::queue<DRVector2> getVerticesForGlyph(u32 c, bool raw = false);
 	__inline__ const char* getName() { return mFontName.data(); }
 
 	DRReturn loadAll();
@@ -114,7 +116,6 @@ protected:
 	DataBuffer* mPointBuffer;
 	DataBuffer* mBezierCurveBuffer;
 
-	
 	void cleanUp(FT_Face face, FT_Library lib);
 	int getIndexOfPointInMap(DRVector2 point);
 	int getIndexOfBezierMap(const DRBezierCurve& bezierCurve);

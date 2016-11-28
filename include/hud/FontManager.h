@@ -18,6 +18,10 @@ namespace UniLib {
 	namespace controller {
 		class CPUSheduler;
 	}
+	namespace view {
+		class Material;
+		typedef DRResourcePtr<Material> MaterialPtr;
+	}
 };
 
 class DRFont;
@@ -44,6 +48,7 @@ public:
 		return mFonts.s_find(id);
 	}
 	__inline__ DRFont* getDefaultFont() { return getFont(mDefaultFontHash); }
+	__inline__ UniLib::view::MaterialPtr getMaterial() { return mMaterial; }
 	__inline__ UniLib::controller::CPUSheduler* getLoadingScheduler() { return mLoadingScheduler; }
 	__inline__ const u32* getGlyphMap(int* mGlypCount) const { *mGlypCount = mGlyphCount; return mGlyphMap; }
 
@@ -61,6 +66,8 @@ protected:
 	DHASH mDefaultFontHash;
 	int mGlyphCount;
 	u32* mGlyphMap;
+
+	UniLib::view::MaterialPtr mMaterial;
 
 	int returnedFontLoadings;
 	UniLib::controller::Command* mFontCalculatingFinishCommand;

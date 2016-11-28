@@ -30,7 +30,7 @@ public:
 	 *   (je 1) ... bezier index
 	 * \return pointer to array, must be released from caller!!
 	 */
-	u32* getRaw(u32 &size) const;
+	u32* getRaw(u32 &size, u32 c) const;
 protected:
 	struct GridNode
 	{
@@ -42,11 +42,8 @@ protected:
 			float ix = 0, iy = 0;
 			modf(v.x / stepSize, &ix);
 			modf(v.y / stepSize, &iy);
-			if (ix >= 8 || iy >= 8) {
-				int iZahl = 1;
-			}
-			assert(ix < 8 && iy < 8);
-			return DRVector2i(ix, iy);
+			assert((int)ix < 8 && (int)iy < 8);
+			return DRVector2i((int)ix, (int)iy);
 		}
 	};
 
@@ -61,7 +58,7 @@ public:
 	~Glyph();
 
 	//DRReturn calculateShortBezierCurves(DRFont*	parent, BezierCurveList& beziersList);
-	__inline__ DRReturn addToGrid(u16 bezierIndex, DRVector2* vectors, u8 vectorCount) { return mGlyphGrid.addToGrid(bezierIndex, vectors, vectorCount); }
+	DRReturn addToGrid(u16 bezierIndex, DRVector2* vectors, u8 vectorCount);// { return mGlyphGrid.addToGrid(bezierIndex, vectors, vectorCount); }
 
 	//__inline__ const BezierCurvesContainer* getFinalBezierCurves() const { return &mFinalBezierCurves; }
 	__inline__ void setDataBufferIndex(u16 index) { mDataBufferIndex = index; }
@@ -69,14 +66,27 @@ public:
 
 	// grid functions
 	__inline__ int getGridIndexCount() const { return mGlyphGrid.getIndicesInGridCount(); }
-	__inline__ u32* getGridRawData(u32 &size) const { return mGlyphGrid.getRaw(size); }
+	__inline__ u32* getGridRawData(u32 &size, u32 c) const { return mGlyphGrid.getRaw(size, c); }
 
+	// helper setter and getter
+	__inline__ void setBoundingBox(const DRBoundingBox& bb) { mBoundingBox = bb; }
+	__inline__ void scaleBoundingBox(DRVector2 scaleVector) { mBoundingBox *= scaleVector; }
+
+	__inline__ void setGlyphMetrics(const FT_Glyph_Metrics& metrics) { mGlyphMetrics = metrics; }
+	__inline__ const FT_Glyph_Metrics& getGlyphMetrics() { return mGlyphMetrics; }
+
+	__inline__ void setRawBezierCurves(const BezierCurveList& bezierCurves) { mBezierKurves = bezierCurves; }
+	__inline__ const BezierCurveList& getRawBezierCurves() const { return mBezierKurves; }
 protected:
 	GlyphGrid	     mGlyphGrid;
 	//BezierCurvesContainer mFinalBezierCurves;
+	BezierCurveList  mBezierKurves;
 	u32              mBezierCurvesCount;
 
 	u16				mDataBufferIndex;
+	// font data for rendering
+	FT_Glyph_Metrics mGlyphMetrics;
+	DRBoundingBox    mBoundingBox;
 };
 
 class GlyphCalculate 
@@ -91,6 +101,7 @@ public:
 	__inline__ BezierCurveList* getBezierKurves() { return &mBezierKurves; }
 	__inline__ const BezierCurveList* getBezierKurves() const { return &mBezierKurves; }
 
+
 	DRReturn calculateGrid(DRFont* parent, Glyph* glyph);
 
 	void printBeziers();
@@ -101,7 +112,10 @@ protected:
 	// for build up
 	std::queue<DRVector2i> mTempPoints;
 	BezierCurveList mBezierKurves;
+	BezierCurveList mBezierKurvesDebug;
 	u32* mBezierIndices;
+	DRBoundingBox    mBoundingBox;
+	FT_Glyph_Metrics mGlyphMetrics;
 	
 };
 

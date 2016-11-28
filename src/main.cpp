@@ -21,6 +21,7 @@
 #include "view/TextureMaterial.h"
 #include "lib/Timer.h"
 #include "hud/HUDRootNode.h"
+#include "hud/HUDText.h"
 
 #include "debug/CPUSchedulerTasksLog.h"
 //#include "FrameBuffer.h"
@@ -282,6 +283,9 @@ DRReturn load()
 	// HUD
 	g_HUDRootNode = new HUD::RootNode();
 	g_HUDRootNode->init(g_v2WindowLength, "data/material/hud.json");
+	//HUD::ContainerNode* debugStatsContainer = new HUD::ContainerNode("debugStats", g_HUDRootNode);
+	//HUD::Text* testText = new HUD::Text("test", debugStatsContainer, "Test");
+	//testText->setPosition(DRVector2(0.0f));
 	gWorld->addStaticGeometrie(floor);
 	//*/
 	// loading from json

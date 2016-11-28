@@ -3,16 +3,18 @@
 
 #include "generator/RenderToTexture.h"
 #include "lib/MultithreadContainer.h"
-
+/*
 namespace UniLib {
 	namespace view {
 		class Texture;
 		typedef DRResourcePtr<Texture> TexturePtr;
 	}
 }
-
+*/
 namespace HUD
 {
+	class Element;
+
 	class RenderElementsToTexture : public UniLib::generator::RenderToTexture
 	{
 	public:
@@ -26,9 +28,16 @@ namespace HUD
 
 		virtual DRReturn run();
 		virtual DRReturn render();
+		virtual bool    isReady();
+
+		void addToRender(Element* ele, UniLib::view::MaterialPtr mat);
+		//virtual DRReturn render();
 	protected:
 		bool mNewTextureAssigned;
 		bool mTaskFinished;
+		typedef std::map<UniLib::view::MaterialPtr, std::list<Element*>> ElementsOrderByMaterial;
+		typedef std::pair<UniLib::view::MaterialPtr, std::list<Element*>> ElementsOrderByMaterialPair;
+		ElementsOrderByMaterial mElementsToRender;
 
 	};
 }

@@ -92,8 +92,12 @@ void World::addStaticGeometrie(view::VisibleNode* obj)
 	model::ShaderProgram* program = obj->getMaterial()->getShaderProgram();
 	if (program) {
 		ShaderProgram* sh = static_cast<ShaderProgram*>(program);
-		mWorldUniforms->addLocationToUniform("view", sh);
-		mWorldUniforms->addLocationToUniform("time", sh);
+		//mWorldUniforms->addLocationToUniform("view", sh);
+		//mWorldUniforms->addLocationToUniform("time", sh);
+		UniLib::view::MaterialPtr matPtr = obj->getMaterial();
+		if (matPtr->getUniformSet()) {
+			UniLib::model::UniformSet* uniforms = matPtr->getUniformSet();
+		}
 	}
 }
 

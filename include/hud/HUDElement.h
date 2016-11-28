@@ -5,10 +5,20 @@
 #include "lib/MultithreadContainer.h"
 #include "lib/MultithreadMap.h"
 
+namespace UniLib {
+	
+	namespace view {
+		class Material;
+		typedef DRResourcePtr<Material> MaterialPtr;
+	}
+}
+
 namespace HUD {
 	
 	class RootNode;
 	class ContainerNode;
+
+	
 
 	class Element : public UniLib::lib::MultithreadContainer
 	{
@@ -22,9 +32,9 @@ namespace HUD {
 		__inline__ HASH getId() { return mId; }
 		__inline__ std::string getName() { return mName; }
 
-		virtual DRReturn render() = 0;
+		//virtual DRReturn render() = 0;
 		virtual DRReturn move(float timeSinceLastFrame) { return DR_OK; }
-
+		virtual DRReturn render();
 		RootNode* getRootNode();
 
 		//! \brief adding new element 
@@ -36,6 +46,7 @@ namespace HUD {
 					ele->getName().data(), dub->getName().data());
 				return DR_ERROR;
 			}
+
 			return DR_OK;
 		}
 		
@@ -48,6 +59,9 @@ namespace HUD {
 			return mChildElements.s_remove(id);
 		}
 
+		void addToRender(ContainerNode* renderContainer);
+		virtual DRBoundingBox calculateSize();
+
 	protected:
 		// identity, Node
 		HASH mId;
@@ -56,10 +70,12 @@ namespace HUD {
 		Element*	   mElementParent;
 		typedef UniLib::lib::MultithreadMap<HASH, Element*> ElementMap;
 		ElementMap mChildElements;
+		
 
 		// status, attributes
 		bool mDirty;
 		DRVector2 mPosition;
+		UniLib::view::MaterialPtr mMaterial;
 	};
 }
 

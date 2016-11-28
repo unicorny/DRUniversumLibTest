@@ -24,6 +24,10 @@ namespace HUD {
 		__inline__ Text* setPosition(DRVector2 pos) {
 			mPosition = pos; return this;
 		}
+
+		virtual DRReturn move();
+		virtual DRBoundingBox calculateSize();
+
 	protected:
 		std::string mText;
 		float mFontSize;
