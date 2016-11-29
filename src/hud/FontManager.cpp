@@ -84,7 +84,24 @@ void FontManager::calculateFonts(UniLib::controller::Command* finishCommand/* = 
 {
 	mFontCalculatingFinishCommand = finishCommand;
 }
-
+void FontManager::finishedLoading()
+{
+	mReturnedFontLoadingsMutex.lock();
+	returnedFontLoadings++;
+	mFonts.lock();
+	if (returnedFontLoadings == mFonts.size()) {
+		if (mFontCalculatingFinishCommand) mFontCalculatingFinishCommand->taskFinished(NULL);
+		u32 summe = 0;
+		for (FontMap::iterator it = mFonts.begin(); it != mFonts.end(); it++) {
+			summe += it->second->getBufferSizeSum();
+		}
+		float kByte = (float)summe / 1024.0f;
+		EngineLog.writeToLog("Memory Consumption for %d fonts: %.3f kByte", 
+								mFonts.size(), kByte);
+	}
+	mFonts.unlock();
+	mReturnedFontLoadingsMutex.unlock();
+}
 
 void FontManager::setGlyphMap(std::queue<u32>& glyph)
 {
@@ -104,6 +121,7 @@ FontWeights FontManager::getFontWeight(const char* fontWeight)
 	if (!strcmp(fontWeight, "normal")) return FONT_WEIGHT_NORMAL;
 	else if (!strcmp(fontWeight, "italic")) return FONT_WEIGHT_ITALIC;
 	else if (!strcmp(fontWeight, "bold")) return FONT_WEIGHT_BOLD;
+	else if (!strcmp(fontWeight, "bold italic")) return FONT_WEIGHT_BOLD_ITALIC;
 	return FONT_WEIGHT_NORMAL;
 }
 const char* FontManager::getFontWeight(FontWeights fontWeight)
@@ -112,6 +130,7 @@ const char* FontManager::getFontWeight(FontWeights fontWeight)
 	case FONT_WEIGHT_NORMAL: return "normal";
 	case FONT_WEIGHT_ITALIC: return "italic";
 	case FONT_WEIGHT_BOLD: return "bold";
+	case FONT_WEIGHT_BOLD_ITALIC: return "bold italic";
 	default: return "normal";
 	}
 	return "normal";

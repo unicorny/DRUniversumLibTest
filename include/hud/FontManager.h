@@ -11,7 +11,8 @@
 enum FontWeights {
 	FONT_WEIGHT_NORMAL,
 	FONT_WEIGHT_BOLD,
-	FONT_WEIGHT_ITALIC
+	FONT_WEIGHT_ITALIC,
+	FONT_WEIGHT_BOLD_ITALIC
 };
 
 namespace UniLib {
@@ -28,6 +29,7 @@ class DRFont;
 class FontManager
 {
 public:
+	friend DRFont;
 	//! \brief
 	//! \param loadingThread thread for loading fonts, if null given, create own scheduler
 	FontManager(UniLib::controller::CPUSheduler* loadingThread = NULL);
@@ -58,6 +60,7 @@ public:
 	void setGlyphMap(std::queue<u32>& glyph);
 protected:
 	typedef UniLib::lib::MultithreadMap<DHASH, DRFont*> FontMap;
+	void finishedLoading();
 
 	UniLib::controller::CPUSheduler* mLoadingScheduler;
 	// set to true if we have created ore own cpu scheduler
@@ -70,6 +73,7 @@ protected:
 	UniLib::view::MaterialPtr mMaterial;
 
 	int returnedFontLoadings;
+	UniLib::lib::MultithreadContainer mReturnedFontLoadingsMutex;
 	UniLib::controller::Command* mFontCalculatingFinishCommand;
 };
 

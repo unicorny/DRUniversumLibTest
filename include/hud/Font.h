@@ -66,6 +66,7 @@ public:
 	__inline__ const char* getName() { return mFontName.data(); }
 
 	DRReturn loadAll();
+	float getBufferSizeSum();
 
 protected:
 	FontManager* mParent;
@@ -88,6 +89,7 @@ protected:
 		void* data;
 		u8 sizePerIndex;
 		u16 indexCount;
+		__inline__ u32 size() { return sizePerIndex*indexCount; }
 	};
 
 	struct BezierCurve64 {

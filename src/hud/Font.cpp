@@ -251,7 +251,7 @@ DRReturn DRFont::loadAll()
 	DR_SAVE_DELETE_ARRAY(rawDataArray);
 	DR_SAVE_DELETE_ARRAY(rawDataSizeArray);
 	DR_SAVE_DELETE_ARRAY(calculator);
-	float summe = (float)((gridBufferSize + mBezierCurveCount) * sizeof(u16) + mPointCount * sizeof(DRVector2)) / 1024.0f;
+	float summe = (float)((gridBufferSize + bezierCurveBufferCount) * sizeof(u16) + mPointCount * sizeof(DRVector2)) / 1024.0f;
 	EngineLog.writeToLog("[DRFont::loadAll] %s", fullFontName.data());
 	EngineLog.writeToLog("statistic:\n\tindex buffer size: %.3f kByte (%d)\n\tpoint buffer size: %.3f kByte (%d)\n\tbezier curve buffer size: %.3f kByte (%d)\n\tSumme: %.3f kByte",
 		(float)gridBufferSize*(float)sizeof(u16)/1024.0f, gridBufferSize,
@@ -260,13 +260,16 @@ DRReturn DRFont::loadAll()
 		summe);
 		//*/
 
-	
-
 	setLoadingState(LOADING_STATE_FULLY_LOADED);
-
+	mParent->finishedLoading();
 	//EngineLog.writeToLog("[DRFont::loadAll] sum: %d ms", SDL_GetTicks() - gStartTicks);
 
 	return DR_OK;
+}
+
+float DRFont::getBufferSizeSum()
+{
+	return mIndexBuffer->size() + mPointBuffer->size() + mBezierCurveBuffer->size();
 }
 
 std::queue<DRVector2> DRFont::getVerticesForGlyph(u32 c, bool raw/* = false*/)

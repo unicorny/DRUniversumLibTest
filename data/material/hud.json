@@ -1,8 +1,9 @@
 {"fonts": [
-	{"name":"arial", "path":"data/font/arial.ttf", "default":true},
+	{"name":"arial", "path":"data/font/arial.ttf"},
 	{"weight":"bold", "name":"arial", "path":"data/font/arialbd.ttf"},
 	{"weight":"italic", "name":"arial", "path":"data/font/ariali.ttf"},
 	{"name":"arial black", "path":"data/font/ariblk.ttf"},
+	{"name":"arial", "path":"data/font/arialbi.ttf", "weight":"bold italic", "default":true},
 	{"name":"MandroidBB", "path":"data/font/MandroidBB.ttf"},
 	{"weight":"bold", "name":"MandroidBB", "path":"data/font/MandroidBB_bold.ttf"},
 	{"weight":"italic", "name":"MandroidBB", "path":"data/font/MandroidBB_italBB.ttf"},
