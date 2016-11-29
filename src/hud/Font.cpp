@@ -71,6 +71,9 @@ DRReturn DRFont::loadAll()
 	u32 bezierCurveBufferCount = 0;
 	FT_BBox ff_boundingBox = font->bbox;
 	
+	std::string fullFontName = font->family_name;
+	fullFontName += " ";
+	fullFontName += font->style_name;
 	std::string logFilename("fontDebug/");
 	for (int i = 0; i < strlen(font->family_name); i++) {
 		char c = font->family_name[i];
@@ -249,7 +252,8 @@ DRReturn DRFont::loadAll()
 	DR_SAVE_DELETE_ARRAY(rawDataSizeArray);
 	DR_SAVE_DELETE_ARRAY(calculator);
 	float summe = (float)((gridBufferSize + mBezierCurveCount) * sizeof(u16) + mPointCount * sizeof(DRVector2)) / 1024.0f;
-	EngineLog.writeToLog("[DRFont::loadAll] statistic:\n\tindex buffer size: %.3f kByte (%d)\n\tpoint buffer size: %.3f kByte (%d)\n\tbezier curve buffer size: %.3f kByte (%d)\n\tSumme: %.3f kByte",
+	EngineLog.writeToLog("[DRFont::loadAll] %s", fullFontName.data());
+	EngineLog.writeToLog("statistic:\n\tindex buffer size: %.3f kByte (%d)\n\tpoint buffer size: %.3f kByte (%d)\n\tbezier curve buffer size: %.3f kByte (%d)\n\tSumme: %.3f kByte",
 		(float)gridBufferSize*(float)sizeof(u16)/1024.0f, gridBufferSize,
 		(float)mPointCount*(float)sizeof(DRVector2)/1024.0f, mPointCount,
 		(float)bezierCurveBufferCount*(float)sizeof(u16)/1024.0f, bezierCurveBufferCount,

@@ -82,6 +82,7 @@ protected:
 	//BezierCurvesContainer mFinalBezierCurves;
 	BezierCurveList  mBezierKurves;
 	u32              mBezierCurvesCount;
+	
 
 	u16				mDataBufferIndex;
 	// font data for rendering
@@ -116,6 +117,7 @@ protected:
 	u32* mBezierIndices;
 	DRBoundingBox    mBoundingBox;
 	FT_Glyph_Metrics mGlyphMetrics;
+	u8				 mBezierNodeMax;
 	
 };
 

@@ -152,12 +152,20 @@ Glyph::Glyph()
 }
 
 
+DRReturn Glyph::addToGrid(u16 bezierIndex, DRVector2* vectors, u8 vectorCount)
+{
+	DRVector2* temp = new DRVector2[vectorCount];
+	for (int i = 0; i < vectorCount; i++) {
+		temp[i] = (vectors[i] - mBoundingBox.getMin()) / (DRVector2(mBoundingBox.getWidth(), mBoundingBox.getHeight())*1.1f);
+	}
+	return mGlyphGrid.addToGrid(bezierIndex, temp, vectorCount);
+}
 
 //***************************************************************************************************
 // Glyph Calculate 
 // **************************************************************************************************
 GlyphCalculate::GlyphCalculate()
-	: mBezierIndices(NULL)
+	: mBezierIndices(NULL), mBezierNodeMax(0)
 {
 
 }
@@ -178,6 +186,8 @@ void GlyphCalculate::addPointToBezier(DRVector2i p, int conturIndex, bool onCurv
 	// if one bezier curve is complete
 	if (onCurve && mTempPoints.size() > 1) {
 		mBezierKurves.push_back(new DRBezierCurve(mTempPoints.size()));
+		assert((u32)((u8)mTempPoints.size()) == mTempPoints.size());
+		mBezierNodeMax = max(mBezierNodeMax, mTempPoints.size());
 		int index = 0;
 		// adding points to bezier curve
 		while (!mTempPoints.empty()) {
@@ -209,142 +219,162 @@ DRReturn GlyphCalculate::loadGlyph(FT_ULong c, FT_Face face)
 	//FT_BBox boundingBox = face->bbox;
 	mGlyphMetrics = slot->metrics;
 
+	if (slot->format != FT_GLYPH_FORMAT_OUTLINE) {
+		EngineLog.writeToLog("font: %s, glyph: %c", face->family_name, (char)c);
+		LOG_ERROR("glyph hasn't a outline format", DR_ERROR);
+	}
 	// process outline of glyph
-	if (slot->format == FT_GLYPH_FORMAT_OUTLINE) {
-		short conturCount = slot->outline.n_contours;
-		short pointCount = slot->outline.n_points;
-		if (pointCount == 0) return DR_OK;
-		// get max x and y value
-		short maxX = 0, maxY = 0;
-		short minX = 1000, minY = 1000;
-		for (short i = 0; i < pointCount; i++) {
+	short conturCount = slot->outline.n_contours;
+	short pointCount = slot->outline.n_points;
+	if (pointCount == 0) return DR_OK;
+	// get max x and y value
+	short maxX = 0, maxY = 0;
+	short minX = 1000, minY = 1000;
+	for (short i = 0; i < pointCount; i++) {
+		FT_Vector p = slot->outline.points[i];
+		if (p.x != (long)((short)p.x) || p.y != (long)((short)p.y)) {
+			LOG_ERROR("point value exceed short data range!", DR_ERROR);
+		}
+		maxX = max(maxX, p.x);
+		maxY = max(maxY, p.y);
+		minX = min(minX, p.x);
+		minY = min(minY, p.y);
+	}
+	mBoundingBox = DRBoundingBox(DRVector2(minX, minY), DRVector2(maxX, maxY));
+	//EngineLog.writeToLog("glyph bounding box size: min: %dx%d (%dx%d),  max: %dx%d (%dx%d)",
+		//boundingBox.xMin, boundingBox.yMin, minX, minY, boundingBox.xMax, boundingBox.yMax, maxX, maxY);
+
+	// debug  print out character infos
+	//printf("family: %s, style name: %s, char: %c\n", face->family_name, face->style_name, (char)c);
+	std::string logFilename = "fontDebug/";
+	for (int i = 0; i < strlen(face->family_name); i++) {
+		char c = face->family_name[i];
+		if (c == ' ')
+			c = '_';
+		logFilename += c;
+	}
+	logFilename += "_";
+	logFilename += face->style_name;
+	logFilename += ".txt";
+	DRFile file(logFilename.data(), "at");
+	char buffer[512]; memset(buffer, 0, 512);
+	FT_Glyph_Metrics m = slot->metrics;
+	// Advanced White (horiAdvance): space for Glyph (with empty space left and right)
+	// horizontal Bearing: space after font graphics start
+	// details: https://www.freetype.org/freetype2/docs/glyphs/glyphs-3.html
+	sprintf(buffer, "%c\nBounding Box: min: %dx%d max: %dx%d\nwidth: %d, height: %d\nHorizontal Bearing: %dx%d advance: %d\n\n",
+			(char)c, minX, minY, maxX, maxY, m.width, m.height, m.horiBearingX, m.horiBearingY, m.horiAdvance);
+	file.write(buffer, sizeof(char), strlen(buffer));
+	// */
+
+	for (short contur = 0; contur < conturCount; contur++) {
+		short start = 0;
+		while (!mTempPoints.empty()) mTempPoints.pop();
+		FT_Vector firstPoint;
+		if (contur > 0) start = slot->outline.contours[contur - 1] + 1;
+		//printf("contur: %d\n", contur);
+		for (short i = start; i <= slot->outline.contours[contur]; i++)
+		{
 			FT_Vector p = slot->outline.points[i];
-			if (p.x != (long)((short)p.x) || p.y != (long)((short)p.y)) {
-				LOG_ERROR("point value exceed short data range!", DR_ERROR);
+			if (i == start) firstPoint = p;
+			char f = slot->outline.tags[i];
+			std::string pointType;
+			switch (f) {
+			case FT_CURVE_TAG_ON: pointType = "On Curve"; break;
+			case FT_CURVE_TAG_CONIC: pointType = "Off Curve, Conic Arc"; break;
+			case FT_CURVE_TAG_CUBIC: pointType = "Off Curve, Cubic Arc"; break;
+			default: pointType = std::to_string((int)f);
 			}
-			maxX = max(maxX, p.x);
-			maxY = max(maxY, p.y);
-			minX = min(minX, p.x);
-			minY = min(minY, p.y);
-		}
-		mBoundingBox = DRBoundingBox(DRVector2(minX, minY), DRVector2(maxX, maxY));
-		//EngineLog.writeToLog("glyph bounding box size: min: %dx%d (%dx%d),  max: %dx%d (%dx%d)",
-			//boundingBox.xMin, boundingBox.yMin, minX, minY, boundingBox.xMax, boundingBox.yMax, maxX, maxY);
-
-		// debug  print out character infos
-		//printf("family: %s, style name: %s, char: %c\n", face->family_name, face->style_name, (char)c);
-		std::string logFilename = "fontDebug/";
-		for (int i = 0; i < strlen(face->family_name); i++) {
-			char c = face->family_name[i];
-			if (c == ' ')
-				c = '_';
-			logFilename += c;
-		}
-		logFilename += "_";
-		logFilename += face->style_name;
-		logFilename += ".txt";
-		DRFile file(logFilename.data(), "at");
-		char buffer[512]; memset(buffer, 0, 512);
-		FT_Glyph_Metrics m = slot->metrics;
-		// Advanced White (horiAdvance): space for Glyph (with empty space left and right)
-		// horizontal Bearing: space after font graphics start
-		// details: https://www.freetype.org/freetype2/docs/glyphs/glyphs-3.html
-		sprintf(buffer, "%c\nBounding Box: min: %dx%d max: %dx%d\nwidth: %d, height: %d\nHorizontal Bearing: %dx%d advance: %d\n\n",
-				(char)c, minX, minY, maxX, maxY, m.width, m.height, m.horiBearingX, m.horiBearingY, m.horiAdvance);
-		file.write(buffer, sizeof(char), strlen(buffer));
-		// */
-
-		for (short contur = 0; contur < conturCount; contur++) {
-			short start = 0;
-			while (!mTempPoints.empty()) mTempPoints.pop();
-			FT_Vector firstPoint;
-			if (contur > 0) start = slot->outline.contours[contur - 1] + 1;
-			//printf("contur: %d\n", contur);
-			for (short i = start; i <= slot->outline.contours[contur]; i++)
-			{
-				FT_Vector p = slot->outline.points[i];
-				if (i == start) firstPoint = p;
-				char f = slot->outline.tags[i];
-				std::string pointType;
-				switch (f) {
-				case FT_CURVE_TAG_ON: pointType = "On Curve"; break;
-				case FT_CURVE_TAG_CONIC: pointType = "Off Curve, Conic Arc"; break;
-				case FT_CURVE_TAG_CUBIC: pointType = "Off Curve, Cubic Arc"; break;
-				default: pointType = std::to_string((int)f);
-				}
-				bool controlPoint = true;
-				bool thirdOrderControlPoint = true;
-				pointType = "Off Curve";
-				//int index = p.x * 4 + p.y*textureSize.x * 4;
-				if ((f & 1) == 1) {
-					//addPointToBezier(DRVector2i(p.x - boundingBox.xMin, p.y - boundingBox.yMin), contur, true);
-					addPointToBezier(DRVector2i(p.x, p.y), contur, true);
-					controlPoint = false;
-					pointType = "On Curve";
-				}
-				else {
-					//addPointToBezier(DRVector2i(p.x - boundingBox.xMin, p.y - boundingBox.yMin), contur, false);
-					addPointToBezier(DRVector2i(p.x, p.y), contur, false);
-					if ((f & 2) == 2) {
-						// third order bezier arc control point
-						pointType += ", third order bezier arc control point";
-					}
-					else {
-						// second order bezier arc control point
-						thirdOrderControlPoint = false;
-						pointType += ", second order control point";
-					}
-				}
-				if ((f & 4) == 4) {
-					// bits 5-7 contain drop out mode
-				}
-			}
-
-			//addPointToBezier(DRVector2i(firstPoint.x - boundingBox.xMin, firstPoint.y - boundingBox.yMin), contur, true);
-			addPointToBezier(DRVector2i(firstPoint.x, firstPoint.y), contur, true);
-		}
-
-		//mBezierKurvesDebug = mBezierKurves;
-		for (BezierCurveList::iterator it = mBezierKurves.begin(); it != mBezierKurves.end(); it++) {
-			
-			if (false && (*it)->getNodeCount() > 4) {
-				//printf("node Count over 4: %d\n", (*it)->getNodeCount());
-				DRBezierCurve* secondBezier = new DRBezierCurve((*it)->getNodeCount());
-				DRBezierCurve* firstBezier = new DRBezierCurve(**it);
-				firstBezier->splitWithDeCasteljau(*secondBezier, true);
-				
-				mBezierKurvesDebug.push_back(firstBezier);
-				mBezierKurvesDebug.push_back(secondBezier);
+			bool controlPoint = true;
+			bool thirdOrderControlPoint = true;
+			pointType = "Off Curve";
+			//int index = p.x * 4 + p.y*textureSize.x * 4;
+			if ((f & 1) == 1) {
+				//addPointToBezier(DRVector2i(p.x - boundingBox.xMin, p.y - boundingBox.yMin), contur, true);
+				addPointToBezier(DRVector2i(p.x, p.y), contur, true);
+				controlPoint = false;
+				pointType = "On Curve";
 			}
 			else {
-				mBezierKurvesDebug.push_back(new DRBezierCurve(**it));
+				//addPointToBezier(DRVector2i(p.x - boundingBox.xMin, p.y - boundingBox.yMin), contur, false);
+				addPointToBezier(DRVector2i(p.x, p.y), contur, false);
+				if ((f & 2) == 2) {
+					// third order bezier arc control point
+					pointType += ", third order bezier arc control point";
+				}
+				else {
+					// second order bezier arc control point
+					thirdOrderControlPoint = false;
+					pointType += ", second order control point";
+				}
 			}
-			
+			if ((f & 4) == 4) {
+				// bits 5-7 contain drop out mode
+			}
 		}
-		// calculate conic bezier curves
-		bool reduktionCalled = true;
-		while (reduktionCalled) {
-			reduktionCalled = false;
-			for (BezierCurveList::iterator it = mBezierKurves.begin(); it != mBezierKurves.end(); it++) {
-				if ((*it)->getNodeCount() > 3) {
-					reduktionCalled = true;
-					//DRBezierCurve* secondBezier = new DRBezierCurve((*it)->getNodeCount());
-					//(*it)->splitWithDeCasteljau(*secondBezier, false);
-					// TODO: change code, make first all splits and then all gradreduktions, it will be more accurate
-					DRBezierCurve* bez12 = (*it)->gradreduktionAndSplit();
-					//DRBezierCurve* bez22 = secondBezier->gradreduktionAndSplit();
-					if (bez12) {
-						it = mBezierKurves.insert(++it, bez12);
-						//it++;
+
+		//addPointToBezier(DRVector2i(firstPoint.x - boundingBox.xMin, firstPoint.y - boundingBox.yMin), contur, true);
+		addPointToBezier(DRVector2i(firstPoint.x, firstPoint.y), contur, true);
+	}
+
+	//mBezierKurvesDebug = mBezierKurves;
+	
+	for (BezierCurveList::iterator it = mBezierKurves.begin(); it != mBezierKurves.end(); it++) {
+		// debug
+		if (false && (*it)->getNodeCount() > 4) {
+			//printf("node Count over 4: %d\n", (*it)->getNodeCount());
+			DRBezierCurve* secondBezier = new DRBezierCurve((*it)->getNodeCount());
+			DRBezierCurve* firstBezier = new DRBezierCurve(**it);
+			firstBezier->splitWithDeCasteljau(*secondBezier, true);
+				
+			mBezierKurvesDebug.push_back(firstBezier);
+			mBezierKurvesDebug.push_back(secondBezier);
+		}
+		else {
+			mBezierKurvesDebug.push_back(new DRBezierCurve(**it));
+		}
+			
+	}
+	
+	// split and reduce recursive
+	const s32 fixedParam = 3;
+	u32 tempArrayCount = (int)pow(2, mBezierNodeMax - fixedParam);
+	DRBezierCurve** tempArrayForSplitting = new DRBezierCurve*[tempArrayCount];
+	for (BezierCurveList::iterator it = mBezierKurves.begin(); it != mBezierKurves.end(); it++) {
+		// put into recursive list
+		u8 nodeCount = (*it)->getNodeCount();
+		assert((u32)nodeCount == (*it)->getNodeCount());
+		if (nodeCount > 4) {
+			memset(tempArrayForSplitting, 0, tempArrayCount * sizeof(DRBezierCurve*));
+			s32 splitDeep = nodeCount - fixedParam;
+			if ((*it)->splitRecursive(splitDeep, tempArrayForSplitting)) {
+				LOG_ERROR("error by splitting recursive", DR_ERROR);
+			}
+			u32 resultCount = (int)pow(2, splitDeep);
+			for (int i = 0; i < resultCount; i++) {
+				if (!tempArrayForSplitting[i]) {
+					LOG_ERROR("empty splitting result", DR_ERROR);
+				}
+				else {
+					tempArrayForSplitting[i]->gradReduktionRecursive(3);
+					if (i > 0) {
+						it = mBezierKurves.insert(++it, tempArrayForSplitting[i]);
 					}
-					/*it = mBezierKurves.insert(++it, secondBezier);
-					if (bez22) {
-						it = mBezierKurves.insert(++it, bez22);
-					}*/
 				}
 			}
 		}
+		else if (nodeCount == 4) {
+			DRBezierCurve* secondBezier = new DRBezierCurve(nodeCount);
+			(*it)->splitWithDeCasteljau(*secondBezier, false);
+			(*it)->gradreduktionAndSplit();
+			secondBezier->gradreduktionAndSplit();
+			//secondBezier->gradreduktionAndSplit();
+			it = mBezierKurves.insert(++it, secondBezier);
+			//mBezierKurvesDebug.push_back(new DRBezierCurve(*secondBezier));
+		}
 	}
+	
+	DR_SAVE_DELETE_ARRAY(tempArrayForSplitting);
 	mBezierIndices = new u32[mBezierKurves.size()];
 
 	return DR_OK;
@@ -382,13 +412,4 @@ DRReturn GlyphCalculate::calculateGrid(DRFont* parent, Glyph* glyph)
 	}
 	
 	return DR_OK;
-}
-
-DRReturn Glyph::addToGrid(u16 bezierIndex, DRVector2* vectors, u8 vectorCount)
-{
-	DRVector2* temp = new DRVector2[vectorCount];
-	for (int i = 0; i < vectorCount; i++) {
-		temp[i] = (vectors[i] - mBoundingBox.getMin()) / (DRVector2(mBoundingBox.getWidth(), mBoundingBox.getHeight())*1.1f);
-	}
-	return mGlyphGrid.addToGrid(bezierIndex, temp, vectorCount); 
 }
