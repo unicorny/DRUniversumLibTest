@@ -20,7 +20,7 @@ GlyphGrid::~GlyphGrid()
 	DR_SAVE_DELETE_ARRAY(mGridNodes);
 	mGridSize = 0;
 }
-DRReturn GlyphGrid::addToGrid(u16 bezierIndex, DRVector2* vectors, u8 vectorCount)
+DRReturn GlyphGrid::addToGrid(u32 bezierIndex, DRVector2* vectors, u8 vectorCount)
 {
 	float stepSize = 1.0f / (float)mGridSize;
 	
@@ -35,9 +35,17 @@ DRReturn GlyphGrid::addToGrid(u16 bezierIndex, DRVector2* vectors, u8 vectorCoun
 		}
 	}
 	// calculate bounding box for bezier curve
-
-	// putting bezier curves into grid
 	DRBoundingBox bb(vectors, (u16)vectorCount);
+	// check if bounding box is valid
+	for (int i = 0; i < vectorCount; i++) {
+		for (int j = 0; j < 2; j++) {
+			if (vectors[i].c[j] >= 1.0f) {
+				//LOG_WARNING("drop curve, because outside of grid");
+				return DR_OK;
+			}
+		}
+	}
+	// putting bezier curves into grid
 	DRVector2i gridIndexMin = GridNode::getGridIndex(bb.getMin(), stepSize);
 	DRVector2i gridIndexMax = GridNode::getGridIndex(bb.getMax(), stepSize);
 	int addCount = 0;
@@ -152,7 +160,7 @@ Glyph::Glyph()
 }
 
 
-DRReturn Glyph::addToGrid(u16 bezierIndex, DRVector2* vectors, u8 vectorCount)
+DRReturn Glyph::addToGrid(u32 bezierIndex, DRVector2* vectors, u8 vectorCount)
 {
 	DRVector2* temp = new DRVector2[vectorCount];
 	for (int i = 0; i < vectorCount; i++) {
@@ -160,6 +168,7 @@ DRReturn Glyph::addToGrid(u16 bezierIndex, DRVector2* vectors, u8 vectorCount)
 	}
 	return mGlyphGrid.addToGrid(bezierIndex, temp, vectorCount);
 }
+
 
 //***************************************************************************************************
 // Glyph Calculate 
@@ -199,7 +208,7 @@ void GlyphCalculate::addPointToBezier(DRVector2i p, int conturIndex, bool onCurv
 	}
 }
 
-DRReturn GlyphCalculate::loadGlyph(FT_ULong c, FT_Face face)
+DRReturn GlyphCalculate::loadGlyph(FT_ULong c, FT_Face face, s32 splitDeepParam)
 {
 	assert(mBezierKurves.size() == 0);
 	while (!mTempPoints.empty()) {
@@ -337,8 +346,8 @@ DRReturn GlyphCalculate::loadGlyph(FT_ULong c, FT_Face face)
 	}
 	
 	// split and reduce recursive
-	const s32 fixedParam = 3;
-	u32 tempArrayCount = max(4, (int)pow(2, mBezierNodeMax - fixedParam));
+	
+	u32 tempArrayCount = max(4, (int)pow(2, mBezierNodeMax - splitDeepParam));
 	DRBezierCurve** tempArrayForSplitting = new DRBezierCurve*[tempArrayCount];
 	for (BezierCurveList::iterator it = mBezierKurves.begin(); it != mBezierKurves.end(); it++) {
 		// put into recursive list
@@ -346,7 +355,7 @@ DRReturn GlyphCalculate::loadGlyph(FT_ULong c, FT_Face face)
 		assert((u32)nodeCount == (*it)->getNodeCount());
 		if (nodeCount > 3) {
 			memset(tempArrayForSplitting, 0, tempArrayCount * sizeof(DRBezierCurve*));
-			s32 splitDeep = nodeCount - fixedParam;
+			s32 splitDeep = nodeCount - splitDeepParam;
 
 			if ((*it)->splitRecursive(splitDeep, tempArrayForSplitting)) {
 				LOG_ERROR("error by splitting recursive", DR_ERROR);
@@ -383,7 +392,7 @@ void GlyphCalculate::printBeziers()
 DRReturn GlyphCalculate::calculateGrid(DRFont* parent, Glyph* glyph)
 {
 	assert(parent != NULL);
-	assert(parent->mBezierCurveBuffer->sizePerIndex == sizeof(u16));
+	assert(parent->mBezierCurveBuffer->sizePerIndex == sizeof(u16) || parent->mBezierCurveBuffer->sizePerIndex == sizeof(u32));
 	assert(parent->mPointBuffer->sizePerIndex == sizeof(DRVector2));
 
 	glyph->setBoundingBox(mBoundingBox);
@@ -391,16 +400,35 @@ DRReturn GlyphCalculate::calculateGrid(DRFont* parent, Glyph* glyph)
 	glyph->setRawBezierCurves(mBezierKurvesDebug);
 
 	DRVector2 temp[3];
-	u16* bezierData = (u16*)parent->mBezierCurveBuffer->data;
+	u16* bezierData = NULL;
+	u32* bezierData32 = NULL;
+	if (parent->mBezierCurveBuffer->sizePerIndex == sizeof(u16)) {
+		bezierData = (u16*)parent->mBezierCurveBuffer->data;
+	}
+	else if (parent->mBezierCurveBuffer->sizePerIndex == sizeof(u32)) {
+		bezierData32 = (u32*)parent->mBezierCurveBuffer->data;
+	}
 	DRVector2* pointData = (DRVector2*)parent->mPointBuffer->data;
 	for (int i = 0; i < mBezierKurves.size(); i++) {
-		u16* bezierIndices = &bezierData[mBezierIndices[i]];
-		assert(bezierIndices[0] < 4);
-		for (int iVector = 0; iVector < bezierIndices[0]; iVector++) {
-			//int pointIndex = bezierIndices[iVector + 1];
-			temp[iVector] = pointData[bezierIndices[iVector+1]];
+		if (bezierData) {
+			u16* bezierIndices = &bezierData[mBezierIndices[i]];
+			assert(bezierIndices[0] < 4);
+			for (int iVector = 0; iVector < bezierIndices[0]; iVector++) {
+				//int pointIndex = bezierIndices[iVector + 1];
+				temp[iVector] = pointData[bezierIndices[iVector + 1]];
+			}
+			glyph->addToGrid(mBezierIndices[i], temp, bezierIndices[0]);
 		}
-		glyph->addToGrid(mBezierIndices[i], temp, bezierIndices[0]);
+		else if (bezierData32) {
+			u32* bezierIndices32 = &bezierData32[mBezierIndices[i]];
+			assert(bezierIndices32[0] < 4);
+			for (int iVector = 0; iVector < bezierIndices32[0]; iVector++) {
+				//int pointIndex = bezierIndices[iVector + 1];
+				temp[iVector] = pointData[bezierIndices32[iVector + 1]];
+			}
+			assert((u32)((u8)bezierIndices32[0]) == bezierIndices32[0]);
+			glyph->addToGrid(bezierIndices32[i], temp, bezierIndices32[0]);
+		}
 	}
 	
 	return DR_OK;

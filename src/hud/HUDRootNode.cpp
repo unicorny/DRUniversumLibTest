@@ -128,10 +128,11 @@ namespace HUD {
 				std::string weight = font.get("weight", "normal").asString();
 				std::string name = font.get("name", "").asString();
 				std::string path = font.get("path", "").asString();
+				int splitDeep = font.get("splitDeep", 3).asInt();
 				bool isDefault = font.get("default", false).asBool();
 				EngineLog.writeToLog("adding font: %s (%s) with %s",
 					name.data(), path.data(), weight.data());
-				mFontManager->addFont(name.data(), path.data(), weight.data(), isDefault);
+				mFontManager->addFont(name.data(), path.data(), weight.data(), isDefault, splitDeep);
 			}
 		}
 		

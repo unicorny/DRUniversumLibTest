@@ -45,14 +45,14 @@ FontManager::~FontManager()
 	mLoadingScheduler = NULL;
 }
 
-DRReturn FontManager::addFont(const char* fontName, const char* fontPath, const char* weight /* = "normal"*/, bool isDefault /*= false*/)
+DRReturn FontManager::addFont(const char* fontName, const char* fontPath, const char* weight /* = "normal"*/, bool isDefault /*= false*/, int splitDeep/* = 3*/)
 {
 	DHASH id = DRMakeDoubleHash(weight, fontName);
 
 	// load font file into memory
 	DRFile file(fontPath, "rb");
 	if (!file.isOpen()) {
-		EngineLog.writeToLog("file: %s for font: %s couldn't be opened", fontName, fontPath);
+		EngineLog.writeToLog("file: %s for font: %s couldn't be opened", fontName, fontPath, splitDeep);
 		LOG_ERROR("Error by opening file", DR_ERROR);
 	}
 	u32 size = file.getSize();
@@ -66,7 +66,7 @@ DRReturn FontManager::addFont(const char* fontName, const char* fontPath, const 
 	std::string fullName = fontName;
 	fullName += "-";
 	fullName += weight;
-	DRFont* font = new DRFont(this, data, size, fullName.data());
+	DRFont* font = new DRFont(this, data, size, fullName.data(), splitDeep);
 	DRFont* dublette = NULL;
 	if (mFonts.s_add(id, font, &dublette)) {
 		EngineLog.writeToLog("Hash Collision with font: %s", fontName);

@@ -4,9 +4,9 @@
 
 using namespace UniLib;
 
-DRFont::DRFont(FontManager* fm, u8* data, u32 dataSize, const char* fontName)
+DRFont::DRFont(FontManager* fm, u8* data, u32 dataSize, const char* fontName, int splitDeep)
 	: mParent(fm), mFontName(fontName), mFontFileMemory(data), mFontFileMemorySize(dataSize),
-	mPointCount(0), mBezierCurveCount(0), mIndexBuffer(NULL), mPointBuffer(NULL), mBezierCurveBuffer(NULL)
+	mPointCount(0), mBezierCurveCount(0), mIndexBuffer(NULL), mPointBuffer(NULL), mBezierCurveBuffer(NULL), mSplitDeep(splitDeep)
 {
 	mLoadingState = LOADING_STATE_HAS_INFORMATIONS;
 }
@@ -95,7 +95,7 @@ DRReturn DRFont::loadAll()
 	startTicks = SDL_GetTicks();
 	for (int iGlyphIndex = 0; iGlyphIndex < glyphMapSize; iGlyphIndex++) {
 		// fill beziers and optimize
-		if (calculator[iGlyphIndex].loadGlyph(glyphMap[iGlyphIndex], font)) {
+		if (calculator[iGlyphIndex].loadGlyph(glyphMap[iGlyphIndex], font, mSplitDeep)) {
 			cleanUp(font, freeTypeLibrayHandle);
 			LOG_ERROR("error by loading glyph", DR_ERROR);
 		}
@@ -149,13 +149,13 @@ DRReturn DRFont::loadAll()
 	assert(bezierCurveBufferCount > mBezierCurveCount);
 
 	u16* bezierIndices = NULL;
-	//u32* bezierIndices32 = NULL;
+	u32* bezierIndices32 = NULL;
 	// malloc
 	if ((u32)bezierCountShort != bezierCurveBufferCount) {
-		printf("font: %s, count: %d\n", logFilename.data(), bezierCurveBufferCount);
-		LOG_ERROR("bezier count exceed short data range!", DR_ERROR);
-		//mBezierCurveBuffer = new DataBuffer(sizeof(u32), bezierCurveBufferCount);
-		//bezierIndices32 = (u32*)mBezierCurveBuffer->data;
+		//printf("font: %s, count: %d\n", logFilename.data(), bezierCurveBufferCount);
+		//LOG_ERROR("bezier count exceed short data range!", DR_ERROR);
+		mBezierCurveBuffer = new DataBuffer(sizeof(u32), bezierCurveBufferCount);
+		bezierIndices32 = (u32*)mBezierCurveBuffer->data;
 	}
 	else {
 		mBezierCurveBuffer = new DataBuffer(sizeof(u16), bezierCountShort);
@@ -170,9 +170,11 @@ DRReturn DRFont::loadAll()
 		newBezierIndices.insert(std::pair<u16, u16>(it->second, index));
 		it->second = index;
 		assert(c.count < 4);
-		bezierIndices[index++] = c.count;
+		if(bezierIndices) bezierIndices[index++] = c.count;
+		else if (bezierIndices32) bezierIndices32[index++] = c.count;
 		for (int i = 0; i < c.count; i++) {
-			bezierIndices[index++] = c.indices[i];
+			if(bezierIndices) bezierIndices[index++] = c.indices[i];
+			else if (bezierIndices32) bezierIndices32[index++] = c.count;
 		}
 		assert(index < bezierCurveBufferCount);
 	}
@@ -323,22 +325,32 @@ std::queue<DRVector3> DRFont::getVerticesForGlyph(u32 c, bool raw/* = false*/)
 	assert(mPointBuffer->sizePerIndex == sizeof(DRVector2));
 	DRVector2* pointBuffer = (DRVector2*)mPointBuffer->data;
 	// get bezier curve buffer
-	assert(mBezierCurveBuffer->sizePerIndex == sizeof(u16));
-	u16* bezierCurveIndicesBuffer = (u16*)mBezierCurveBuffer->data;
+	u16* bezierCurveIndicesBuffer = NULL;
+	u32* bezierCurveIndicesBuffer32 = NULL;
+	if(mBezierCurveBuffer->sizePerIndex == sizeof(u16)) 
+		bezierCurveIndicesBuffer = (u16*)mBezierCurveBuffer->data;
+	else if(mBezierCurveBuffer->sizePerIndex == sizeof(u32))
+		bezierCurveIndicesBuffer32 = (u32*)mBezierCurveBuffer->data;
 	int lastIndex = -1;
 	for (std::list<int>::iterator it = bezierCurveIndices.begin(); it != bezierCurveIndices.end(); it++) {
 		//if (lastIndex == *it) continue;
 		lastIndex = *it;
-		int iCountPoints = bezierCurveIndicesBuffer[lastIndex];
+		int iCountPoints = 0;
+		if(bezierCurveIndicesBuffer) iCountPoints = bezierCurveIndicesBuffer[lastIndex];
+		else if(bezierCurveIndicesBuffer32) iCountPoints = bezierCurveIndicesBuffer32[lastIndex];
 		if (!iCountPoints) {
 			LOG_WARNING("iCountPoints is zero");
-			EngineLog.writeToLog("before: %d, after: %d", bezierCurveIndicesBuffer[lastIndex - 1], bezierCurveIndicesBuffer[lastIndex + 1]);
+			if(bezierCurveIndicesBuffer)
+				EngineLog.writeToLog("before: %d, after: %d", bezierCurveIndicesBuffer[lastIndex - 1], bezierCurveIndicesBuffer[lastIndex + 1]);
+			else if(bezierCurveIndicesBuffer32)
+				EngineLog.writeToLog("before: %d, after: %d", bezierCurveIndicesBuffer32[lastIndex - 1], bezierCurveIndicesBuffer32[lastIndex + 1]);
 			continue;
 		}
 		DRBezierCurve curve(iCountPoints);
 		for (int i = 1; i <= iCountPoints; i++) {
 			//outQueue.push(pointBuffer[bezierCurveIndicesBuffer[lastIndex+i]]);
-			curve[i - 1] = pointBuffer[bezierCurveIndicesBuffer[lastIndex + i]];
+			if(bezierCurveIndicesBuffer) curve[i - 1] = pointBuffer[bezierCurveIndicesBuffer[lastIndex + i]];
+			else if (bezierCurveIndicesBuffer32) curve[i - 1] = pointBuffer[bezierCurveIndicesBuffer32[lastIndex + i]];
 		}
 		
 		curve.calculatePointsOnCurve(f, control_points_count, controlPoints);

@@ -18,7 +18,7 @@ public:
 	GlyphGrid(u8 gridSize);
 	~GlyphGrid();
 
-	DRReturn addToGrid(u16 bezierIndex, DRVector2* vectors, u8 vectorCount);
+	DRReturn addToGrid(u32 bezierIndex, DRVector2* vectors, u8 vectorCount);
 	int getIndicesInGridCount() const;
 
 	/*! index buffer :
@@ -42,6 +42,12 @@ protected:
 			float ix = 0, iy = 0;
 			modf(v.x / stepSize, &ix);
 			modf(v.y / stepSize, &iy);
+			if ((int)ix >= 8) {
+				printf("ix !< 8\n");
+			}
+			if ((int)iy >= 8) {
+				printf("iy !< 8\n");
+			}
 			assert((int)ix < 8 && (int)iy < 8);
 			return DRVector2i((int)ix, (int)iy);
 		}
@@ -58,7 +64,7 @@ public:
 	~Glyph();
 
 	//DRReturn calculateShortBezierCurves(DRFont*	parent, BezierCurveList& beziersList);
-	DRReturn addToGrid(u16 bezierIndex, DRVector2* vectors, u8 vectorCount);// { return mGlyphGrid.addToGrid(bezierIndex, vectors, vectorCount); }
+	DRReturn addToGrid(u32 bezierIndex, DRVector2* vectors, u8 vectorCount);// { return mGlyphGrid.addToGrid(bezierIndex, vectors, vectorCount); }
 
 	//__inline__ const BezierCurvesContainer* getFinalBezierCurves() const { return &mFinalBezierCurves; }
 	__inline__ void setDataBufferIndex(u16 index) { mDataBufferIndex = index; }
@@ -96,7 +102,7 @@ public:
 	GlyphCalculate();
 	~GlyphCalculate();
 
-	DRReturn loadGlyph(FT_ULong c, FT_Face face);
+	DRReturn loadGlyph(FT_ULong c, FT_Face face, s32 splitDeepParam);
 	__inline__ u32& operator[](u32 index) { assert(mBezierIndices && index < mBezierKurves.size()); return mBezierIndices[index]; }
 	void addPointToBezier(DRVector2i p, int conturIndex, bool onCurve = true);
 	__inline__ BezierCurveList* getBezierKurves() { return &mBezierKurves; }

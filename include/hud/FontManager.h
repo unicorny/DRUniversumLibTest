@@ -36,10 +36,10 @@ public:
 	~FontManager();
 
 
-	__inline__ DRReturn addFont(const char* fontName, const char* fontPath, FontWeights weight = FONT_WEIGHT_NORMAL, bool isDefault = false){
+	__inline__ DRReturn addFont(const char* fontName, const char* fontPath, FontWeights weight = FONT_WEIGHT_NORMAL, bool isDefault = false, int splitDeep = 3){
 		return addFont(fontName, fontPath, getFontWeight(weight), isDefault);
 	}
-	DRReturn addFont(const char* fontName, const char* fontPath, const char* weight = "normal", bool isDefault = false);
+	DRReturn addFont(const char* fontName, const char* fontPath, const char* weight = "normal", bool isDefault = false, int splitDeep = 3);
 
 	//! \brief calculate conic splines for vector based font rendering
 	//! \param finishCommand will called, after all fonts have finished loading
