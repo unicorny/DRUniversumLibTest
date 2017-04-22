@@ -29,14 +29,14 @@ public:
 	~TextGeom();
 
 	DRReturn init(bool compare = false);
-	DRReturn buildGeom(std::queue<DRVector2> vertices);
+	DRReturn buildGeom(std::queue<DRVector3> vertices);
 
 	//	__inline__ UniLib::view::TexturePtr getTexture() { return mTexture; }
 	void setStaticGeometrie();
 	bool isGeometrieReady();
 	
 protected:
-	void TextGeom::addVertex(DRVector2 vertex);
+	void TextGeom::addVertex(DRVector3 vertex);
 
 	bool mGeometrieReady;
 	UniLib::view::TexturePtr mTexture;

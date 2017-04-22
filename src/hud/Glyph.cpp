@@ -338,15 +338,16 @@ DRReturn GlyphCalculate::loadGlyph(FT_ULong c, FT_Face face)
 	
 	// split and reduce recursive
 	const s32 fixedParam = 3;
-	u32 tempArrayCount = (int)pow(2, mBezierNodeMax - fixedParam);
+	u32 tempArrayCount = max(4, (int)pow(2, mBezierNodeMax - fixedParam));
 	DRBezierCurve** tempArrayForSplitting = new DRBezierCurve*[tempArrayCount];
 	for (BezierCurveList::iterator it = mBezierKurves.begin(); it != mBezierKurves.end(); it++) {
 		// put into recursive list
 		u8 nodeCount = (*it)->getNodeCount();
 		assert((u32)nodeCount == (*it)->getNodeCount());
-		if (nodeCount > 4) {
+		if (nodeCount > 3) {
 			memset(tempArrayForSplitting, 0, tempArrayCount * sizeof(DRBezierCurve*));
 			s32 splitDeep = nodeCount - fixedParam;
+
 			if ((*it)->splitRecursive(splitDeep, tempArrayForSplitting)) {
 				LOG_ERROR("error by splitting recursive", DR_ERROR);
 			}
@@ -362,15 +363,6 @@ DRReturn GlyphCalculate::loadGlyph(FT_ULong c, FT_Face face)
 					}
 				}
 			}
-		}
-		else if (nodeCount == 4) {
-			DRBezierCurve* secondBezier = new DRBezierCurve(nodeCount);
-			(*it)->splitWithDeCasteljau(*secondBezier, false);
-			(*it)->gradreduktionAndSplit();
-			secondBezier->gradreduktionAndSplit();
-			//secondBezier->gradreduktionAndSplit();
-			it = mBezierKurves.insert(++it, secondBezier);
-			//mBezierKurvesDebug.push_back(new DRBezierCurve(*secondBezier));
 		}
 	}
 	

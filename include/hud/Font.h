@@ -62,7 +62,7 @@ public:
 
 	
 	__inline__ const Glyph* getGlyph(u32 c) { return mGlyphenMap[c]; }
-	std::queue<DRVector2> getVerticesForGlyph(u32 c, bool raw = false);
+	std::queue<DRVector3> getVerticesForGlyph(u32 c, bool raw = false);
 	__inline__ const char* getName() { return mFontName.data(); }
 
 	DRReturn loadAll();

@@ -63,7 +63,7 @@ DRReturn TextGeom::init(bool compare /*= false*/)
 	//memset(pixels, 0, sizeof(u8)*textureSize.x*textureSize.y * 4);
 	return DR_OK;
 }
-DRReturn TextGeom::buildGeom(std::queue<DRVector2> vertices)
+DRReturn TextGeom::buildGeom(std::queue<DRVector3> vertices)
 {
 	//const BezierCurvesContainer* bezierCurves = glyph->getFinalBezierCurves();
 	while (!vertices.empty()) {
@@ -97,9 +97,9 @@ bool TextGeom::isGeometrieReady()
 	return b;
 }
 
-void TextGeom::addVertex(DRVector2 vertex)
+void TextGeom::addVertex(DRVector3 vertex)
 {
-	mBaseGeo->addVector(DRVector3(vertex.x, vertex.y, 0.0f), model::geometrie::GEOMETRIE_VERTICES);
+	mBaseGeo->addVector(vertex, model::geometrie::GEOMETRIE_VERTICES);
 	mBaseGeo->addIndice(mBaseGeo->getIndexCountFromVector());
 }
 

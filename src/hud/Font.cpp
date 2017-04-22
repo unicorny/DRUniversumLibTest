@@ -272,10 +272,10 @@ float DRFont::getBufferSizeSum()
 	return mIndexBuffer->size() + mPointBuffer->size() + mBezierCurveBuffer->size();
 }
 
-std::queue<DRVector2> DRFont::getVerticesForGlyph(u32 c, bool raw/* = false*/)
+std::queue<DRVector3> DRFont::getVerticesForGlyph(u32 c, bool raw/* = false*/)
 {
 	Uint32 startTicks = SDL_GetTicks();
-	std::queue<DRVector2> outQueue;
+	std::queue<DRVector3> outQueue;
 
 	// preparation for control point calculation
 	// calculate steps in between (in percent)
@@ -295,7 +295,9 @@ std::queue<DRVector2> DRFont::getVerticesForGlyph(u32 c, bool raw/* = false*/)
 		for (BezierCurveList::const_iterator it = curves.begin(); it != curves.end(); it++) {
 			(*it)->calculatePointsOnCurve(f, control_points_count, controlPoints);
 			for (int i = 0; i < control_points_count; i++) {
-				outQueue.push(controlPoints[i]);
+				float z = 0.0f;
+				if (i == 0) z = -1.0f; else if (i == control_points_count - 1) z = 1.0f;
+				outQueue.push(DRVector3(controlPoints[i].x, controlPoints[i].y, z));
 			}
 		}
 		return outQueue;
@@ -341,7 +343,9 @@ std::queue<DRVector2> DRFont::getVerticesForGlyph(u32 c, bool raw/* = false*/)
 		
 		curve.calculatePointsOnCurve(f, control_points_count, controlPoints);
 		for (int i = 0; i < control_points_count; i++) {
-			outQueue.push(controlPoints[i]);
+			float z = 0.0f;
+			if (i == 0) z = -1.0f; else if (i == control_points_count - 1) z = 1.0f;
+			outQueue.push(DRVector3(controlPoints[i].x, controlPoints[i].y, z));
 		}
 		
 	}
