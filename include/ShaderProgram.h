@@ -1,4 +1,3 @@
-
 #include "model/ShaderProgram.h"
 #include "GL/glew.h"
 #include <sdl/SDL_opengl.h>
@@ -27,19 +26,33 @@ protected:
 class ShaderProgram : public UniLib::model::ShaderProgram
 {
 public:
-	ShaderProgram(HASH id);
+	ShaderProgram(const char* name, HASH id);
 	virtual ~ShaderProgram();
 
 	virtual void bind() const;
 	virtual void unbind();
 
 	__inline__ GLuint getProgram() {return mProgram;}
-
 	
 protected:
 	virtual void parseShaderData();
 	GLuint mProgram;
 	
 };  
+
+class ShaderProgramBinarySaveTask : public UniLib::controller::CPUTask
+{
+public:
+	ShaderProgramBinarySaveTask(void* data, u32 length, GLenum format, const char* fileName)
+		: CPUTask(UniLib::g_HarddiskScheduler), mBinaryData(data), mBinaryDataLength(length), 
+		  mBinaryFormat(format), mFilename(fileName) {}
+	virtual DRReturn run();
+	virtual const char* getResourceType() const { return "ShaderProgramBinarySaveTask"; };
+protected:
+	void* mBinaryData;
+	u32   mBinaryDataLength;
+	GLenum mBinaryFormat;
+	std::string mFilename;
+};
 
 #endif //__MICRO_SPACECRAFT_SHADER_PROGRAM_H

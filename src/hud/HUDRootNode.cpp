@@ -157,7 +157,7 @@ namespace HUD {
 		view::TextureMaterial* tm = new TextureMaterial;
 		view::MaterialPtr m = view::MaterialPtr(tm);
 		controller::ShaderManager* shaderManager = controller::ShaderManager::getInstance();
-		model::ShaderProgramPtr sh = shaderManager->getShaderProgram("renderToTexture.vert", "renderToTexture.frag");
+		model::ShaderProgramPtr sh = shaderManager->getShaderProgram("renderToTexture","renderToTexture.vert", "renderToTexture.frag");
 		tm->setShaderProgram(sh);
 
 		while (!mExitCalled) {

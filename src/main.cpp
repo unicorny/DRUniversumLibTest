@@ -247,7 +247,7 @@ DRReturn load()
 	TextureMaterial* mat = new TextureMaterial;
 	view::TexturePtr texture = textureManager->getEmptyTexture(DRVector2i(512, 512), GL_RGBA);
 	view::MaterialPtr materialPtr = view::MaterialPtr(mat);
-	mat->setShaderProgram(shaderManager->getShaderProgram("simple.vert", "simple.frag"));
+	mat->setShaderProgram(shaderManager->getShaderProgram("simple", "simple.vert", "simple.frag"));
 	mat->setTexture(texture);
 	floor->setMaterial(materialPtr);
 	floor->setGeometrie(ptr);
@@ -261,7 +261,7 @@ DRReturn load()
 	testTask->setName("renderTest");
 #endif
 	Material* renderMaterial = new Material;
-	renderMaterial->setShaderProgram(shaderManager->getShaderProgram("frameBuffer.vert", "speedTest.frag"));
+	renderMaterial->setShaderProgram(shaderManager->getShaderProgram("frameBufer", "frameBuffer.vert", "speedTest.frag"));
 	testTask->setMaterial(renderMaterial);
 	controller::TaskPtr renderTestTask(testTask);
 	testTask->scheduleTask(renderTestTask);

@@ -23,7 +23,7 @@ FontManager::FontManager(controller::CPUSheduler* loadingThread /* = NULL*/)
 	// create Material 
 	UniLib::controller::ShaderManager* shaderM = UniLib::controller::ShaderManager::getInstance();
 	mMaterial = UniLib::view::MaterialPtr(UniLib::g_RenderBinder->newMaterial());
-	mMaterial->setShaderProgram(shaderM->getShaderProgram("showFont.vert", "showFont.frag"));
+	mMaterial->setShaderProgram(shaderM->getShaderProgram("showFont", "showFont.vert", "showFont.frag"));
 	/*FT_Error error = FT_Init_FreeType(&mFreeTypeLibrayHandle);
 	if (error)
 	{

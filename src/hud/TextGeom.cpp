@@ -30,7 +30,7 @@ DRReturn TextGeom::init(bool compare /*= false*/)
 	if (!mGeometrie) {
 		mGeometrie = new view::VisibleNode;
 		view::MaterialPtr materialPtr = view::MaterialPtr(new Material);
-		materialPtr->setShaderProgram(controller::ShaderManager::getInstance()->getShaderProgram("showFont.vert", "showFont.frag"));
+		materialPtr->setShaderProgram(controller::ShaderManager::getInstance()->getShaderProgram("showFont", "showFont.vert", "showFont.frag"));
 		UniformSet* uniform = new UniformSet;
 		if(!compare)
 			uniform->setUniform("fontColor", 0.0f);

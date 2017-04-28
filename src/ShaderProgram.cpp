@@ -1,6 +1,5 @@
 #include "ShaderProgram.h"
 
-
 Shader::Shader(DHASH id/* = 0*/)
 	: UniLib::model::Shader(id), mShaderID(0)
 {
@@ -72,9 +71,8 @@ DRReturn Shader::init(unsigned char* shaderFileInMemory, UniLib::model::ShaderTy
 
 	shaderStrings[0] = (char*)shaderFileInMemory;
 	glShaderSource(mShaderID, 1, shaderStrings, NULL);
-	glCompileShader(mShaderID);
 	free((void *)shaderFileInMemory);
-
+	glCompileShader(mShaderID);
 	glGetShaderiv(mShaderID, GL_COMPILE_STATUS, &compiled);
 	if (compiled == GL_FALSE)
 	{
@@ -106,8 +104,8 @@ GLenum Shader::getShaderType(UniLib::model::ShaderType type)
 
 // *********************************************************************************************************************
 
-ShaderProgram::ShaderProgram(HASH id/* = 0*/)
-	: UniLib::model::ShaderProgram(id), mProgram(0)
+ShaderProgram::ShaderProgram(const char* name, HASH id/* = 0*/)
+	: UniLib::model::ShaderProgram(name, id), mProgram(0)
 {
 }
 
@@ -127,13 +125,10 @@ ShaderProgram::~ShaderProgram()
 
 void ShaderProgram::parseShaderData()
 {
-	char str[8192]; // For error messages from the GLSL compiler and linker
-	memset(str, 0, 8192);
 	// Create a program object and attach the two compiled shaders.
 	if(!mProgram)
 		mProgram = glCreateProgram();
 	//mId = mProgram;
-	
 	lock(); 
 	if (mShaderToLoad.size() > 0) {
 		ShaderData sd = mShaderToLoad.front();
@@ -159,6 +154,8 @@ void ShaderProgram::parseShaderData()
 	}
 	else {
 		unlock();
+		// say opengl that we like to have to binary
+		glProgramParameteri(mProgram, GL_PROGRAM_BINARY_RETRIEVABLE_HINT, GL_TRUE);
 		// Link the program object and print out the info log.
 		try {
 			glLinkProgram(mProgram);
@@ -171,22 +168,61 @@ void ShaderProgram::parseShaderData()
 		glGetProgramiv(mProgram, GL_LINK_STATUS, &shadersLinked);
 		if (shadersLinked == GL_FALSE)
 		{
-			int length = 0;
-			glGetProgramInfoLog(mProgram, sizeof(str), &length, str);
+			int length = 0, writtenLength = 0;
+			glGetProgramiv(mProgram, GL_INFO_LOG_LENGTH, &length);
+			char* errorDetailsBuffer = new char[length + 1];
+			memset(errorDetailsBuffer, 0, length + 1);
+			glGetProgramInfoLog(mProgram, length, &writtenLength, errorDetailsBuffer);
 			//printError("Program object linking error", str);
-			if (length > 1023)
-				UniLib::EngineLog.writeToLog(DRString(str));
+			if (writtenLength > 1023)
+				UniLib::EngineLog.writeToLog(DRString(errorDetailsBuffer));
 			else
-				UniLib::EngineLog.writeToLog("<font color='red'>Fehler:</font>Program object linking error:\n%s", str);
+				UniLib::EngineLog.writeToLog("<font color='red'>Fehler:</font>Program object linking error:\n%s", errorDetailsBuffer);
+		}
+		else {
+			// get binary of shader for simple later use
+			GLint binarySize = 0;
+			GLenum binaryFormat = 0;
+			GLint writtenLength = 0;
+			// get binary size
+			GLint binaryFormatCount = 0;
+			glGetIntegerv(GL_NUM_PROGRAM_BINARY_FORMATS, &binaryFormatCount);
+			if (binaryFormatCount > 0) {
+				glGetProgramiv(mProgram, GL_PROGRAM_BINARY_LENGTH, &binarySize);
+				DRGrafikError("error getting shader program binary size");
+				if (!binarySize) binarySize = 16000;
+				void* binary = (void*)malloc(binarySize);
+				glGetProgramBinary(mProgram, binarySize, &writtenLength, &binaryFormat, binary);
+				if (writtenLength > 0) {
+					std::string filename("data/shader/");
+					filename += mName;
+					filename += ".bin";
+					UniLib::controller::TaskPtr task(new ShaderProgramBinarySaveTask(binary, writtenLength, binaryFormat, filename.data()));
+					task->scheduleTask(task);
+				}
+				else {
+					free(binary);
+					DRGrafikError("error by getting program binary");
+				}
+			}
 		}
 		if (DRGrafikError("ShaderProgram::init create programm")) LOG_WARNING("Fehler bei shader init");
 		setLoadingState(UniLib::LOADING_STATE_FULLY_LOADED);
 		lock();
 	}
 	unlock();
-	
 	//LOG_INFO("Shader loaded");
-	
+}
+
+DRReturn ShaderProgramBinarySaveTask::run()
+{
+	DRFile f(mFilename.data(), "wb");
+	if (f.isOpen()) {
+		f.write(&mBinaryFormat, sizeof(GLenum), 1);
+		f.write(mBinaryData, mBinaryDataLength, 1);
+		f.close();
+	}
+	return DR_OK;
 }
 
 void ShaderProgram::bind() const
