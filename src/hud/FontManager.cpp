@@ -15,9 +15,9 @@ FontManager::FontManager(controller::CPUSheduler* loadingThread /* = NULL*/)
 	  returnedFontLoadings(0), mFontCalculatingFinishCommand(NULL)
 {
 	if (!mLoadingScheduler) {
-		// 2 optimal by 8 Cores and 64 kByte L1 Cache
+		// 4 optimal by 8 Cores and 64 kByte L1 Cache (~2700 ms by 9 fonts)
 		// TODO: check on other configurations
-		mLoadingScheduler = new controller::CPUSheduler(2, "fontLoad");
+		mLoadingScheduler = new controller::CPUSheduler(4, "fontLoad");
 		mCreatedByMySelf = true;
 	}
 	// create Material 
@@ -91,6 +91,7 @@ void FontManager::finishedLoading()
 	mFonts.lock();
 	if (returnedFontLoadings == mFonts.size()) {
 		if (mFontCalculatingFinishCommand) mFontCalculatingFinishCommand->taskFinished(NULL);
+		mFontCalculatingFinishCommand = NULL;
 		u32 summe = 0;
 		for (FontMap::iterator it = mFonts.begin(); it != mFonts.end(); it++) {
 			summe += it->second->getBufferSizeSum();

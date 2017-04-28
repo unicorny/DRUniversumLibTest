@@ -60,11 +60,12 @@ public:
 	DRFont(FontManager* fm, u8* data, u32 dataSize, const char* fontName, int splitDeep);
 	~DRFont();
 
-	
 	__inline__ const Glyph* getGlyph(u32 c) { return mGlyphenMap[c]; }
 	std::queue<DRVector3> getVerticesForGlyph(u32 c, bool raw = false);
 	__inline__ const char* getName() { return mFontName.data(); }
 	__inline__ u8 getSplitDeep() const { return mSplitDeep; }
+
+	DRVector2i calculateTextSize(const char* string);
 
 	DRReturn loadAll();
 	float getBufferSizeSum();

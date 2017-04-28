@@ -72,11 +72,12 @@ namespace HUD {
 
 	}
 
-	DRReturn RootNode::init(DRVector2i screenResolution, const char* hud_config_json, int fps_update)
+	DRReturn RootNode::init(DRVector2i screenResolution, const char* hud_config_json, UniLib::controller::Command* fontLoadingFinishCommand/* = NULL*/, int fps_update /* = 15*/)
 	{
 		mScreenResolution = screenResolution;
 		mFPS_Updates = fps_update;
 		mFontManager = new FontManager();
+		mFontManager->calculateFonts(fontLoadingFinishCommand);
 		controller::TaskPtr task(new ConfigJsonLoadTask(this, hud_config_json));
 		task->scheduleTask(task);
 //		condSignal();

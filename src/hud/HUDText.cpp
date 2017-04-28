@@ -27,7 +27,9 @@ namespace HUD {
 
 	DRBoundingBox Text::calculateSize()
 	{
+		// calculate size of childs
 		DRBoundingBox box = Element::calculateSize();
+
 		return box;
 	}
 

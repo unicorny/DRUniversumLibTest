@@ -79,7 +79,7 @@ public:
 	__inline__ void scaleBoundingBox(DRVector2 scaleVector) { mBoundingBox *= scaleVector; }
 
 	__inline__ void setGlyphMetrics(const FT_Glyph_Metrics& metrics) { mGlyphMetrics = metrics; }
-	__inline__ const FT_Glyph_Metrics& getGlyphMetrics() { return mGlyphMetrics; }
+	__inline__ const FT_Glyph_Metrics& getGlyphMetrics() const { return mGlyphMetrics; }
 
 	__inline__ void setRawBezierCurves(const BezierCurveList& bezierCurves) { mBezierKurves = bezierCurves; }
 	__inline__ const BezierCurveList& getRawBezierCurves() const { return mBezierKurves; }

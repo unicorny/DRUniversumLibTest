@@ -47,8 +47,9 @@ namespace HUD {
 		RootNode();
 		~RootNode();
 
-		// \param fps_update how many times per second should the HUD update
-		DRReturn init(DRVector2i screenResolution, const char* hud_config_json, int fps_update = 15);
+		//! \param fps_update how many times per second should the HUD update
+		//! \param fontLoadingFinishCommand called after finihing font laoding from json file
+		DRReturn init(DRVector2i screenResolution, const char* hud_config_json, UniLib::controller::Command* fontLoadingFinishCommand = NULL, int fps_update = 15);
 		void exit();
 
 		__inline__ FontManager* getFontManager() { return mFontManager; }
@@ -92,7 +93,7 @@ namespace HUD {
 	{
 	public:
 		ConfigJsonLoadTask(RootNode* caller, const char* fileName)
-			: CPUTask(UniLib::g_HarddiskScheduler), mCaller(caller), mConfigFileName(fileName) {}
+			: CPUTask(gCPUScheduler), mCaller(caller), mConfigFileName(fileName) {}
 
 		virtual DRReturn run() {
 			return mCaller->loadFromConfig(UniLib::readFileAsString(mConfigFileName));

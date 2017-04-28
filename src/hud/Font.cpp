@@ -274,6 +274,22 @@ float DRFont::getBufferSizeSum()
 	return mIndexBuffer->size() + mPointBuffer->size() + mBezierCurveBuffer->size();
 }
 
+DRVector2i DRFont::calculateTextSize(const char* string)
+{
+	size_t textLength = strlen(string);
+	DRVector2i size(0.0f);
+	int overBaseline = 0;
+	int underBaseline = 0;
+	for (int i = 0; i < textLength; i++) {
+		const FT_Glyph_Metrics& metric = getGlyph(string[i])->getGlyphMetrics();
+		size.x += metric.horiAdvance;
+		overBaseline = max(overBaseline, metric.horiBearingY);
+		underBaseline = max(underBaseline, metric.height - metric.horiBearingY);
+	}
+	size.y = overBaseline + underBaseline;
+	return size;
+}
+
 std::queue<DRVector3> DRFont::getVerticesForGlyph(u32 c, bool raw/* = false*/)
 {
 	Uint32 startTicks = SDL_GetTicks();

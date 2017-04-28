@@ -346,7 +346,6 @@ DRReturn GlyphCalculate::loadGlyph(FT_ULong c, FT_Face face, s32 splitDeepParam)
 	}
 	
 	// split and reduce recursive
-	
 	u32 tempArrayCount = max(4, (int)pow(2, mBezierNodeMax - splitDeepParam));
 	DRBezierCurve** tempArrayForSplitting = new DRBezierCurve*[tempArrayCount];
 	for (BezierCurveList::iterator it = mBezierKurves.begin(); it != mBezierKurves.end(); it++) {
