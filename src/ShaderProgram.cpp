@@ -1,4 +1,5 @@
 #include "ShaderProgram.h"
+#include "controller/Command.h"
 
 Shader::Shader(DHASH id/* = 0*/)
 	: UniLib::model::Shader(id), mShaderID(0)
@@ -52,6 +53,8 @@ DRReturn Shader::init(const char* shaderFile, UniLib::model::ShaderType shaderTy
 
 	return DR_OK;
 }
+
+
 DRReturn Shader::init(unsigned char* shaderFileInMemory, UniLib::model::ShaderType shaderType)
 {
 	if (!shaderFileInMemory) {
@@ -105,7 +108,7 @@ GLenum Shader::getShaderType(UniLib::model::ShaderType type)
 // *********************************************************************************************************************
 
 ShaderProgram::ShaderProgram(const char* name, HASH id/* = 0*/)
-	: UniLib::model::ShaderProgram(name, id), mProgram(0)
+	: UniLib::model::ShaderProgram(name, id), mProgram(0), mBinaryFailCommand(NULL)
 {
 }
 
@@ -123,12 +126,69 @@ ShaderProgram::~ShaderProgram()
 
 }
 
-void ShaderProgram::parseShaderData()
+std::string ShaderProgram::getBinaryFilePath()
+{
+	std::string filename("data/shader/");
+	filename += mName;
+	filename += ".bin";
+	return filename;
+}
+
+void ShaderProgram::callLoadingCommand() {
+	if(mBinaryFailCommand) {
+		mBinaryFailCommand->taskFinished(NULL);
+		DR_SAVE_DELETE(mBinaryFailCommand);
+	}
+}
+
+void ShaderProgram::checkIfBinaryExist(UniLib::controller::Command* loadingShaderFromFile)
+{
+	mBinaryFailCommand = loadingShaderFromFile;
+	UniLib::controller::TaskPtr task(new ShaderProgramBinaryLoadTask(getBinaryFilePath(), this));
+	task->scheduleTask(task);
+}
+
+bool ShaderProgram::checkLinkState(GLuint program)
+{
+	GLint shadersLinked;
+	glGetProgramiv(program, GL_LINK_STATUS, &shadersLinked);
+	if (shadersLinked == GL_FALSE)
+	{
+		int length = 0, writtenLength = 0;
+		glGetProgramiv(program, GL_INFO_LOG_LENGTH, &length);
+		char* errorDetailsBuffer = new char[length + 1];
+		memset(errorDetailsBuffer, 0, length + 1);
+		glGetProgramInfoLog(program, length, &writtenLength, errorDetailsBuffer);
+		//printError("Program object linking error", str);
+		if (writtenLength > 1023)
+			UniLib::EngineLog.writeToLog(DRString(errorDetailsBuffer));
+		else
+			UniLib::EngineLog.writeToLog("<font color='red'>Fehler:</font>Program object linking error:\n%s", errorDetailsBuffer);
+		DR_SAVE_DELETE_ARRAY(errorDetailsBuffer);
+		return false;
+	}
+	return true;
+}
+
+void ShaderProgram::parseShaderData(void* data)
 {
 	// Create a program object and attach the two compiled shaders.
 	if(!mProgram)
 		mProgram = glCreateProgram();
 	//mId = mProgram;
+	if (data) {
+		ShaderProgramBinary* binary = (ShaderProgramBinary*)data;
+		glProgramBinary(mProgram, binary->mBinaryFormat, binary->mBinaryData, binary->mBinaryDataLength);
+		DR_SAVE_DELETE(binary);
+		if (checkLinkState(mProgram) == true) {
+			setLoadingState(UniLib::LOADING_STATE_FULLY_LOADED);
+			return;
+		}
+		else {
+			callLoadingCommand();
+			return;
+		}
+	}
 	lock(); 
 	if (mShaderToLoad.size() > 0) {
 		ShaderData sd = mShaderToLoad.front();
@@ -154,7 +214,7 @@ void ShaderProgram::parseShaderData()
 	}
 	else {
 		unlock();
-		// say opengl that we like to have to binary
+		// say opengl that we like to have the binary
 		glProgramParameteri(mProgram, GL_PROGRAM_BINARY_RETRIEVABLE_HINT, GL_TRUE);
 		// Link the program object and print out the info log.
 		try {
@@ -164,50 +224,32 @@ void ShaderProgram::parseShaderData()
 			UniLib::EngineLog.writeToLog("Exception trowed from glLinkProgramm, maybe shader isn't compatible with current hardware?, exception: %d", e);
 			LOG_ERROR_VOID("Shader Compiling Error");
 		}
-		GLint shadersLinked;
-		glGetProgramiv(mProgram, GL_LINK_STATUS, &shadersLinked);
-		if (shadersLinked == GL_FALSE)
+
+		if(checkLinkState(mProgram) == true)
 		{
-			int length = 0, writtenLength = 0;
-			glGetProgramiv(mProgram, GL_INFO_LOG_LENGTH, &length);
-			char* errorDetailsBuffer = new char[length + 1];
-			memset(errorDetailsBuffer, 0, length + 1);
-			glGetProgramInfoLog(mProgram, length, &writtenLength, errorDetailsBuffer);
-			//printError("Program object linking error", str);
-			if (writtenLength > 1023)
-				UniLib::EngineLog.writeToLog(DRString(errorDetailsBuffer));
-			else
-				UniLib::EngineLog.writeToLog("<font color='red'>Fehler:</font>Program object linking error:\n%s", errorDetailsBuffer);
-		}
-		else {
 			// get binary of shader for simple later use
-			GLint binarySize = 0;
-			GLenum binaryFormat = 0;
+			ShaderProgramBinary* binary = new ShaderProgramBinary(getBinaryFilePath());
 			GLint writtenLength = 0;
 			// get binary size
 			GLint binaryFormatCount = 0;
 			glGetIntegerv(GL_NUM_PROGRAM_BINARY_FORMATS, &binaryFormatCount);
 			if (binaryFormatCount > 0) {
-				glGetProgramiv(mProgram, GL_PROGRAM_BINARY_LENGTH, &binarySize);
+				glGetProgramiv(mProgram, GL_PROGRAM_BINARY_LENGTH, &binary->mBinaryDataLength);
 				DRGrafikError("error getting shader program binary size");
-				if (!binarySize) binarySize = 16000;
-				void* binary = (void*)malloc(binarySize);
-				glGetProgramBinary(mProgram, binarySize, &writtenLength, &binaryFormat, binary);
+				binary->alloc();
+				glGetProgramBinary(mProgram, binary->mBinaryDataLength, &writtenLength, &binary->mBinaryFormat, binary->mBinaryData);
 				if (writtenLength > 0) {
-					std::string filename("data/shader/");
-					filename += mName;
-					filename += ".bin";
-					UniLib::controller::TaskPtr task(new ShaderProgramBinarySaveTask(binary, writtenLength, binaryFormat, filename.data()));
+					UniLib::controller::TaskPtr task(new ShaderProgramBinarySaveTask(binary));
 					task->scheduleTask(task);
 				}
 				else {
-					free(binary);
+					DR_SAVE_DELETE(binary);
 					DRGrafikError("error by getting program binary");
 				}
 			}
+			setLoadingState(UniLib::LOADING_STATE_FULLY_LOADED);
 		}
-		if (DRGrafikError("ShaderProgram::init create programm")) LOG_WARNING("Fehler bei shader init");
-		setLoadingState(UniLib::LOADING_STATE_FULLY_LOADED);
+		if (DRGrafikError("ShaderProgram::init create programm")) LOG_WARNING("Fehler bei shader init");		
 		lock();
 	}
 	unlock();
@@ -216,12 +258,39 @@ void ShaderProgram::parseShaderData()
 
 DRReturn ShaderProgramBinarySaveTask::run()
 {
-	DRFile f(mFilename.data(), "wb");
+	DRFile f(mBinary->mFilename.data(), "wb");
 	if (f.isOpen()) {
-		f.write(&mBinaryFormat, sizeof(GLenum), 1);
-		f.write(mBinaryData, mBinaryDataLength, 1);
+		f.write(&mBinary->mBinaryFormat, sizeof(GLenum), 1);
+		f.write(mBinary->mBinaryData, mBinary->mBinaryDataLength, 1);
 		f.close();
 	}
+	DR_SAVE_DELETE(mBinary);
+	return DR_OK;
+}
+
+DRReturn ShaderProgramBinaryLoadTask::run()
+{
+	DRFile f(mFilename.data(), "rb");
+	ShaderProgramBinary* binary = new ShaderProgramBinary(mFilename);
+	if (f.isOpen()) {
+		binary->mBinaryDataLength = f.getSize() - sizeof(GLenum);
+		if (binary->mBinaryDataLength > 0) {
+			binary->alloc();
+			f.read(&binary->mBinaryFormat, sizeof(GLenum), 1);
+			f.read(binary->mBinaryData, binary->mBinaryDataLength, 1);
+			f.close();
+
+			UniLib::controller::TaskPtr task(new ShaderProgramBinaryCompileTask(mParent, binary));
+			task->scheduleTask(task);
+			return DR_OK;
+		}
+	}
+	mParent->callLoadingCommand();
+	return DR_OK;
+}
+
+DRReturn ShaderProgramBinaryCompileTask::run() {
+	mShaderProgram->parseShaderData(mShaderProgramBinary);
 	return DR_OK;
 }
 

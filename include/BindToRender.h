@@ -26,7 +26,7 @@ public:
 	virtual UniLib::view::FrameBuffer* newFrameBuffer() { return new FrameBuffer; }
 
 	virtual UniLib::model::Shader* newShader(HASH id) {return new Shader(id);}
-	virtual UniLib::model::ShaderProgram* newShaderProgram(const char* name, HASH id) {return new ShaderProgram(name, id);}
+	virtual UniLib::model::ShaderProgram* newShaderProgram(const char* name, HASH id) { return new ShaderProgram(name, id); }
 	virtual UniLib::model::UniformSet* newUniformSet() { return new UniformSet; }
 	
 	
