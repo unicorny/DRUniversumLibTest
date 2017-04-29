@@ -13,7 +13,7 @@ namespace HUD {
 		Text(const char* name, ContainerNode* parent, const char* text, float fontSize = 0.1f, DRColor textColor = DRColor(1.0f));
 		virtual ~Text();
 
-		__inline__ Text* setFont(DRFont* font) { mFont = font; return this; }
+		__inline__ Text* setFont(Font* font) { mFont = font; return this; }
 		__inline__ Text* setFont(const char* name, const char* weight = "normal") { 
 			mFont = getRootNode()->getFontManager()->getFont(name, FontManager::getFontWeight(weight)); return this;
 		}
@@ -32,7 +32,7 @@ namespace HUD {
 		std::string mText;
 		float mFontSize;
 		DRColor mTextColor;
-		DRFont* mFont;
+		Font* mFont;
 	};
 }
 

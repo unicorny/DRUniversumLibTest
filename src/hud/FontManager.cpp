@@ -1,5 +1,6 @@
 #include "hud/FontManager.h"
 #include "hud/Font.h"
+#include "hud/FontLoaderTask.h"
 
 #include "controller/CPUSheduler.h"
 
@@ -10,9 +11,9 @@
 using namespace UniLib;
 
 //********************************************************************
-FontManager::FontManager(controller::CPUSheduler* loadingThread /* = NULL*/)
+FontManager::FontManager(controller::CPUSheduler* loadingThread /* = NULL*/, const char* fontPath/* = "data/font"*/)
 	: mLoadingScheduler(loadingThread), mCreatedByMySelf(false), mDefaultFontHash(0), mGlyphCount(0), mGlyphMap(NULL),
-	  returnedFontLoadings(0), mFontCalculatingFinishCommand(NULL)
+	  returnedFontLoadings(0), mFontCalculatingFinishCommand(NULL), mFontPath(fontPath)
 {
 	if (!mLoadingScheduler) {
 		// 4 optimal by 8 Cores and 64 kByte L1 Cache (~2700 ms by 9 fonts)
@@ -49,31 +50,17 @@ DRReturn FontManager::addFont(const char* fontName, const char* fontPath, const 
 {
 	DHASH id = DRMakeDoubleHash(weight, fontName);
 
-	// load font file into memory
-	DRFile file(fontPath, "rb");
-	if (!file.isOpen()) {
-		EngineLog.writeToLog("file: %s for font: %s couldn't be opened", fontName, fontPath, splitDeep);
-		LOG_ERROR("Error by opening file", DR_ERROR);
-	}
-	u32 size = file.getSize();
-	u8* data = (u8*)new u8[size + 1];
-	memset(data, 0, size + 1);
-	if (file.read(data, size, 1)) {
-		LOG_ERROR("Error by reading file", DR_ERROR);
-	}
-	file.close();
-
 	std::string fullName = fontName;
-	fullName += "-";
+	fullName += "_";
 	fullName += weight;
-	DRFont* font = new DRFont(this, data, size, fullName.data(), splitDeep);
-	DRFont* dublette = NULL;
+	Font* font = new Font(this, fullName.data());
+	Font* dublette = NULL;
 	if (mFonts.s_add(id, font, &dublette)) {
 		EngineLog.writeToLog("Hash Collision with font: %s", fontName);
 		delete font;
 		return DR_ERROR;
 	}
-	controller::TaskPtr task(new DRFontLoadingTask(mLoadingScheduler, font));
+	controller::TaskPtr task(new FontLoaderTask(mLoadingScheduler, this, font, fontPath, splitDeep));
 	task->scheduleTask(task);
 	if (isDefault) mDefaultFontHash = id;
 

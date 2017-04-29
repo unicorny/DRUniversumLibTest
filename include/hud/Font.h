@@ -6,146 +6,115 @@
 #include "controller/CPUTask.h"
 
 #include "lib/Loadable.h"
-#include "ft2build.h"
-#include FT_FREETYPE_H
-
-namespace UniLib {
-	namespace controller {
-		class CPUScheduler;
-	}
-	
-}
 
 
-/*! 
- *
- * \author: Dario Rekowski
- *
- * \date: 
- *
- * \desc: object represent one font with data buffers for shader
- * 
- * data layout:  
- * - integer or short index buffer
- * - integer or short bezier curve index buffer
- * - float or double point buffer
- * 
- * grid buffer:
- * 
- * headSize (u16 count)
- * (foreach headsize)
- *  (1) gridIndex
- *  (1) indices start index
- * (foreach filled grid cell)
- *   (1) index count
- *   (je 1) ... bezier index
- * 
- * bezier curve index buffer:
- * 
- * (foreach bezier curve)
- *  (1) index count
- *  (je 1) ... point index
- *
- * point buffer:
- *
- * (foreach point)
- *  (2) vector2
- */
+
+// container for saving binary font data
 
 struct DataBuffer {
-	DataBuffer(u8 _sizePerIndex, u16 _indexCount)
+	DataBuffer(u8 _sizePerIndex, u32 _indexCount)
 		: data(malloc(sizePerIndex*indexCount)), sizePerIndex(_sizePerIndex), indexCount(_indexCount) {}
 	DataBuffer() : data(NULL), sizePerIndex(0), indexCount(0) {}
 	~DataBuffer() { free(data); }
-
+	// pointer to memory with data
 	void* data;
+	// size in byte per buffer entry
 	u8 sizePerIndex;
-	u16 indexCount;
+	// buffer entry count
+	u32 indexCount;
 
+	// return sum of size in byte of buffer
 	__inline__ u32 size() { return sizePerIndex*indexCount; }
+	// alloc memory for data buffer, free if already exist
 	void alloc() {
 		if (data) free(data);
 		data = (void*)malloc(size());
 	}
 };
 
+
+/*!
+*
+* \author: Dario Rekowski
+*
+* \date:
+*
+* \desc: object represent one font with data buffers for shader
+*
+* data layout:
+* - integer or short index buffer
+* - integer or short bezier curve index buffer
+* - float or double point buffer
+*
+* grid buffer:
+*
+* headSize (u16 count)
+* (foreach headsize)
+*  (1) gridIndex
+*  (1) indices start index
+* (foreach filled grid cell)
+*   (1) index count
+*   (je 1) ... bezier index
+*
+* bezier curve index buffer:
+*
+* (foreach bezier curve)
+*  (1) index count
+*  (je 1) ... point index
+*
+* point buffer:
+*
+* (foreach point)
+*  (2) vector2
+*/
 class FontManager;
-class DRFont : public UniLib::lib::Loadable
+class FontLoaderTask;
+class Font : public UniLib::lib::Loadable
 {
-	friend GlyphCalculate;
+	friend FontLoaderTask;
 public:
-	DRFont(FontManager* fm, u8* data, u32 dataSize, const char* fontName, int splitDeep);
-	~DRFont();
+	Font(FontManager* fm, const char* fontName);
+	~Font();
 
 	__inline__ const Glyph* getGlyph(u32 c) { return mGlyphenMap[c]; }
-	std::queue<DRVector3> getVerticesForGlyph(u32 c, bool raw = false);
 	__inline__ const char* getName() { return mFontName.data(); }
-	__inline__ u8 getSplitDeep() const { return mSplitDeep; }
+	std::string getBinFileName();
 
 	DRVector2i calculateTextSize(const char* string);
+	u32 getBufferSizeSum();
 
-	DRReturn loadAll();
-	float getBufferSizeSum();
+	// for debug rendering the points as vertices
+	std::queue<DRVector3> getVerticesForGlyph(u32 c, bool raw = false);
 
 protected:
 	FontManager* mParent;
 	std::string  mFontName;
-	u8			 mSplitDeep;
-	// font file in memory
-	u8*						    mFontFileMemory;
-	u32							mFontFileMemorySize;
 
-	// glyphen
 	//Glyph						mGlyph;
-	typedef std::map<u32, Glyph*> GlyphenMap;
-	typedef std::pair<u32, Glyph*> GlyphenPair;
-	GlyphenMap					  mGlyphenMap;
-
-	struct BezierCurve64 {
-		BezierCurve64()
-			: count(0), indices() {}
-		union {
-			struct {
-				u16 count;
-				u16 indices[3];
-			};
-			u64 hash;
-		};
-		
-		bool operator < (const BezierCurve64& b) const { return hash < b.hash; }
-	};
-
-	typedef std::map<float, int> IndexMap;
-	typedef std::map<float, IndexMap> PointIndexMap;
-	typedef std::map<BezierCurve64, int> BezierCurve64Map;
-	PointIndexMap mPointIndexMap;
-	int			  mPointCount;
-	BezierCurve64Map mBezierCurvesMap;
-	int			  mBezierCurveCount;
+	GlyphenMap					mGlyphenMap;
 
 	DataBuffer* mIndexBuffer;
 	DataBuffer* mPointBuffer;
 	DataBuffer* mBezierCurveBuffer;
 
-	void cleanUp(FT_Face face, FT_Library lib);
-	int getIndexOfPointInMap(DRVector2 point);
-	int getIndexOfBezierMap(const DRBezierCurve& bezierCurve);
+	
 };
+/*
 // finish command for loading binary font
 class LoadingBinFontFinishCommand : public UniLib::controller::Command 
 {
 public:
-	LoadingBinFontFinishCommand(DRFont* parent) : mParent(parent) {}
+	LoadingBinFontFinishCommand(Font* parent) : mParent(parent) {}
 	virtual DRReturn taskFinished(UniLib::controller::Task* task);
 private:
-	DRFont* mParent;
+	Font* mParent;
 };
 // Task for loading font, generating bezier curves
 // duration between 100 ms and 4000 ms
 class DRFontLoadingTask : public UniLib::controller::CPUTask
 {
 public:
-	DRFontLoadingTask(UniLib::controller::CPUSheduler* scheduler, DRFont* parent)
+	DRFontLoadingTask(UniLib::controller::CPUSheduler* scheduler, Font* parent)
 		: CPUTask(scheduler), mParent(parent) {
 #ifdef _UNI_LIB_DEBUG
 		setName(mParent->getName());
@@ -154,7 +123,7 @@ public:
 	virtual DRReturn run() { return mParent->loadAll(); }
 	virtual const char* getResourceType() const { return "DRFontLoadingTask"; };
 protected:
-	DRFont* mParent;
+	Font* mParent;
 
 };
 // task for saving and loading final font data from binary file
@@ -167,6 +136,6 @@ protected:
 	DataBuffer* mBuffer[3];
 	std::string mFileName;
 };
-
+*/
 
 #endif //__DR_MICRO_SPACECRAFT_FONT_H

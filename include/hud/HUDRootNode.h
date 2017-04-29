@@ -53,7 +53,7 @@ namespace HUD {
 		void exit();
 
 		__inline__ FontManager* getFontManager() { return mFontManager; }
-		__inline__ DRFont* getTextFont() { return mFont; }
+		__inline__ Font* getTextFont() { return mFont; }
 		__inline__ TextGeom* getTextGeom() { return mTextGeom; }
 		__inline__ TextGeom* getTextGeom2() { return mTextGeom2; }
 		__inline__ DRVector2i getScreenResolution() { return mScreenResolution; }
@@ -82,7 +82,7 @@ namespace HUD {
 
 		// for testing
 		FontManager* mFontManager;
-		DRFont* mFont;
+		Font* mFont;
 		TextGeom* mTextGeom;
 		TextGeom* mTextGeom2;
 
