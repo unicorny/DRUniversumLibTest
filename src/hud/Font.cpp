@@ -261,6 +261,12 @@ DRReturn DRFont::loadAll()
 		(float)bezierCurveBufferCount*(float)sizeof(u16)/1024.0f, bezierCurveBufferCount,
 		summe);
 		//*/
+	std::string filename(gFontPath);
+	filename += mFontName;
+	filename += ".bin";
+	UniLib::controller::TaskPtr task(new DRFontSaveLoadBinTask(mIndexBuffer, mPointBuffer, mBezierCurveBuffer, filename));
+	task->setFinishCommand(new LoadingBinFontFinishCommand(this));
+	task->scheduleTask(task);
 
 	setLoadingState(LOADING_STATE_FULLY_LOADED);
 	mParent->finishedLoading();
@@ -430,5 +436,49 @@ int DRFont::getIndexOfBezierMap(const DRBezierCurve& bezierCurve)
 }
 
 
+// ***************************************************************************************************
+DRFontSaveLoadBinTask::DRFontSaveLoadBinTask(DataBuffer* indexBuffer, DataBuffer* pointBuffer, DataBuffer* bezierCurveBuffer, std::string filename)
+	: CPUTask(UniLib::g_HarddiskScheduler), mFileName(filename)
+{
+	mBuffer[0] = indexBuffer;
+	mBuffer[1] = pointBuffer;
+	mBuffer[2] = bezierCurveBuffer;
+}
 
+DRReturn DRFontSaveLoadBinTask::run()
+{
+	// no data set? let's try to load
+	if (!mBuffer[0]->data) {
+		DRFile file(mFileName.data(), "rb");
+		if (file.isOpen()) {
+			for (int i = 0; i < 3; i++) {
+				file.read(&mBuffer[i]->sizePerIndex, sizeof(u8), 1);
+				file.read(&mBuffer[i]->indexCount, sizeof(u16), 1);
+				mBuffer[i]->alloc();
+				file.read(&mBuffer[i]->data, mBuffer[i]->sizePerIndex, mBuffer[i]->indexCount);
+			}
+			file.close();
+			return DR_OK;
+		}
+	}
+	else {
+		DRFile file(mFileName.data(), "wb");
+		if (file.isOpen()) {
+			for (int i = 0; i < 3; i++) {
+				file.write(&mBuffer[i]->sizePerIndex, sizeof(u8), 1);
+				file.write(&mBuffer[i]->indexCount, sizeof(u16), 1);
+				file.write(&mBuffer[i]->data, mBuffer[i]->sizePerIndex, mBuffer[i]->indexCount);
+			}
+			file.close();
+			return DR_OK;
+		}
+	}
+	return DR_ERROR;
+}
 
+// *******************************************************************************************************************
+DRReturn LoadingBinFontFinishCommand::taskFinished(UniLib::controller::Task* task)
+{
+	delete this;
+	return DR_OK;
+}

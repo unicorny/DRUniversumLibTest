@@ -28,7 +28,8 @@ namespace UniLib {
 	}
 }
 
-
+extern const char* gShaderPath;
+extern const char* gFontPath;
 
 extern SDL_Window* g_pSDLWindow;
 extern UniLib::controller::InputCamera* gInputCamera;

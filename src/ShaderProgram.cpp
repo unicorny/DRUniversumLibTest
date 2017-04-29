@@ -1,5 +1,6 @@
 #include "ShaderProgram.h"
 #include "controller/Command.h"
+#include "MicroSpacecraft.h"
 
 Shader::Shader(DHASH id/* = 0*/)
 	: UniLib::model::Shader(id), mShaderID(0)
@@ -128,7 +129,7 @@ ShaderProgram::~ShaderProgram()
 
 std::string ShaderProgram::getBinaryFilePath()
 {
-	std::string filename("data/shader/");
+	std::string filename(gShaderPath);
 	filename += mName;
 	filename += ".bin";
 	return filename;

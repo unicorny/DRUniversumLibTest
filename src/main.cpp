@@ -43,6 +43,8 @@ HUD::RootNode* g_HUDRootNode = NULL;
 SDL_Window* g_pSDLWindow = NULL;
 controller::InputCamera* gInputCamera = NULL;
 controller::CPUSheduler* gCPUScheduler = NULL;
+const char* gShaderPath = "data/shader/";
+const char* gFontPath = "data/font/";
 SDL_GLContext g_glContext;
 DRVector2i  g_v2WindowLength = DRVector2i(0);
 World* gWorld = NULL;

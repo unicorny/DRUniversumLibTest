@@ -52,6 +52,23 @@ namespace UniLib {
  *  (2) vector2
  */
 
+struct DataBuffer {
+	DataBuffer(u8 _sizePerIndex, u16 _indexCount)
+		: data(malloc(sizePerIndex*indexCount)), sizePerIndex(_sizePerIndex), indexCount(_indexCount) {}
+	DataBuffer() : data(NULL), sizePerIndex(0), indexCount(0) {}
+	~DataBuffer() { free(data); }
+
+	void* data;
+	u8 sizePerIndex;
+	u16 indexCount;
+
+	__inline__ u32 size() { return sizePerIndex*indexCount; }
+	void alloc() {
+		if (data) free(data);
+		data = (void*)malloc(size());
+	}
+};
+
 class FontManager;
 class DRFont : public UniLib::lib::Loadable
 {
@@ -84,16 +101,6 @@ protected:
 	typedef std::pair<u32, Glyph*> GlyphenPair;
 	GlyphenMap					  mGlyphenMap;
 
-	struct DataBuffer {
-		DataBuffer(u8 _sizePerIndex, u16 _indexCount)
-			: data(malloc(sizePerIndex*indexCount)), sizePerIndex(_sizePerIndex), indexCount(_indexCount) {}
-		~DataBuffer() { free(data); }
-		void* data;
-		u8 sizePerIndex;
-		u16 indexCount;
-		__inline__ u32 size() { return sizePerIndex*indexCount; }
-	};
-
 	struct BezierCurve64 {
 		BezierCurve64()
 			: count(0), indices() {}
@@ -124,7 +131,17 @@ protected:
 	int getIndexOfPointInMap(DRVector2 point);
 	int getIndexOfBezierMap(const DRBezierCurve& bezierCurve);
 };
-
+// finish command for loading binary font
+class LoadingBinFontFinishCommand : public UniLib::controller::Command 
+{
+public:
+	LoadingBinFontFinishCommand(DRFont* parent) : mParent(parent) {}
+	virtual DRReturn taskFinished(UniLib::controller::Task* task);
+private:
+	DRFont* mParent;
+};
+// Task for loading font, generating bezier curves
+// duration between 100 ms and 4000 ms
 class DRFontLoadingTask : public UniLib::controller::CPUTask
 {
 public:
@@ -140,5 +157,16 @@ protected:
 	DRFont* mParent;
 
 };
+// task for saving and loading final font data from binary file
+class DRFontSaveLoadBinTask : public UniLib::controller::CPUTask
+{
+public:
+	DRFontSaveLoadBinTask(DataBuffer* indexBuffer, DataBuffer* pointBuffer, DataBuffer* bezierCurveBuffer, std::string filename);
+	virtual DRReturn run();
+protected:
+	DataBuffer* mBuffer[3];
+	std::string mFileName;
+};
+
 
 #endif //__DR_MICRO_SPACECRAFT_FONT_H
