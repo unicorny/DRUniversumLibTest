@@ -28,6 +28,7 @@ public:
 	virtual const char* getResourceType() const { return "FontLoader"; };
 	virtual DRReturn run();
 	virtual bool getFileFromMemory(UniLib::controller::FileInMemory** filesInMemory, size_t fileCount);
+	virtual void finishFileLoadingTask();
 
 	__inline__ u8 getSplitDeep() const { return mSplitDeep; }
 protected:

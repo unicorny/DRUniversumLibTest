@@ -25,8 +25,6 @@ namespace HUD {
 		mMaterial->bind();
 		if (mParent->getTextFont() && mParent->getTextGeom() && mParent->getTextGeom()->isGeometrieReady()) 
 			mParent->getTextGeom()->setStaticGeometrie();
-		if(mParent->getTextFont() && mParent->getTextGeom2() && mParent->getTextGeom2()->isGeometrieReady())
-			mParent->getTextGeom2()->setStaticGeometrie();
 		//mParent->getTextFont()->bind();
 		/*UniLib::view::Geometrie*geo = controller::BaseGeometrieManager::getInstance()->getGeometrie(controller::BASE_GEOMETRIE_PLANE);
 		if (geo->isReady()) {
@@ -53,7 +51,7 @@ namespace HUD {
 
 	RootNode::RootNode()
 		: Thread("HUD"), ContainerNode("ROOT", NULL), mExitCalled(false), mRenderCall(NULL), mFontManager(NULL), mFont(NULL), 
-		mTextGeom(NULL), mTextGeom2(NULL)
+		mTextGeom(NULL)
 	{
 #ifdef _UNI_LIB_DEBUG
 		mRendererCasted->setName("HUD::RootNode Renderer");
@@ -174,11 +172,8 @@ namespace HUD {
 
 				// create geom
 				mTextGeom = new TextGeom;
-				mTextGeom2 = new TextGeom;
 				mTextGeom->init();
-				mTextGeom2->init(true);
 				mTextGeom->buildGeom(mFont->getVerticesForGlyph(L'0'));
-				mTextGeom2->buildGeom(mFont->getVerticesForGlyph(L'0', true));
 
 				//mFont->loadGlyph(-61 | (-92 << 8));
 			}

@@ -54,7 +54,13 @@ DRVector2i Font::calculateTextSize(const char* string)
 	return size;
 }
 
-std::queue<DRVector3> Font::getVerticesForGlyph(u32 c, bool raw/* = false*/)
+void Font::loadingFinished()
+{
+	setLoadingState(LOADING_STATE_FULLY_LOADED);
+	mParent->finishedLoading();
+}
+
+std::queue<DRVector3> Font::getVerticesForGlyph(u32 c)
 {
 	Uint32 startTicks = SDL_GetTicks();
 	std::queue<DRVector3> outQueue;
@@ -72,18 +78,6 @@ std::queue<DRVector3> Font::getVerticesForGlyph(u32 c, bool raw/* = false*/)
 	const Glyph* g = getGlyph(c);
 	assert(g != NULL);
 
-	if (raw) {
-		const BezierCurveList& curves = g->getRawBezierCurves();
-		for (BezierCurveList::const_iterator it = curves.begin(); it != curves.end(); it++) {
-			(*it)->calculatePointsOnCurve(f, control_points_count, controlPoints);
-			for (int i = 0; i < control_points_count; i++) {
-				float z = 0.0f;
-				if (i == 0) z = -1.0f; else if (i == control_points_count - 1) z = 1.0f;
-				outQueue.push(DRVector3(controlPoints[i].x, controlPoints[i].y, z));
-			}
-		}
-		return outQueue;
-	}
 	assert(mIndexBuffer->sizePerIndex == sizeof(u16));
 	u16* indexBuffer = (u16*)mIndexBuffer->data;
 	u16* startIndex = &indexBuffer[g->getDataBufferIndex()];

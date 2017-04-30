@@ -13,7 +13,9 @@
 
 struct DataBuffer {
 	DataBuffer(u8 _sizePerIndex, u32 _indexCount)
-		: data(malloc(sizePerIndex*indexCount)), sizePerIndex(_sizePerIndex), indexCount(_indexCount) {}
+		: data(NULL), sizePerIndex(_sizePerIndex), indexCount(_indexCount) {
+		alloc();
+	}
 	DataBuffer() : data(NULL), sizePerIndex(0), indexCount(0) {}
 	~DataBuffer() { free(data); }
 	// pointer to memory with data
@@ -84,9 +86,10 @@ public:
 	u32 getBufferSizeSum();
 
 	// for debug rendering the points as vertices
-	std::queue<DRVector3> getVerticesForGlyph(u32 c, bool raw = false);
+	std::queue<DRVector3> getVerticesForGlyph(u32 c);
 
 protected:
+	void loadingFinished();
 	FontManager* mParent;
 	std::string  mFontName;
 

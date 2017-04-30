@@ -11,7 +11,7 @@ FontLoaderTask::FontLoaderTask(controller::CPUSheduler* scheduler,
 							   int splitDeep)
 	: CPUTask(scheduler, 1), 
 	mFontManager(fontManager), mParent(parent), mFileName(fileName), mSplitDeep(splitDeep),
-	mFontInfos(NULL), mFontBinary(NULL)
+	mFontInfos(NULL), mFontBinary(NULL), mBezierCurveCount(0), mPointCount(0)
 {
 	std::vector<std::string> fileNames;
 	fileNames.push_back(fileName);
@@ -34,6 +34,11 @@ bool FontLoaderTask::getFileFromMemory(controller::FileInMemory** filesInMemory,
 	mFontInfos = filesInMemory[0];
 	mFontBinary = filesInMemory[1];
 	return false;
+}
+
+void FontLoaderTask::finishFileLoadingTask()
+{
+	triggerSheduler();
 }
 
 DRReturn FontLoaderTask::run()
@@ -239,8 +244,13 @@ DRReturn FontLoaderTask::run()
 
 void FontLoaderTask::finish()
 {
-	//mParent->setLoadingState(LOADING_STATE_FULLY_LOADED);
-	//mFontManager->finishedLoading();
+	mParent->mIndexBuffer = mIndexBuffer;
+	mParent->mPointBuffer = mPointBuffer;
+	mParent->mBezierCurveBuffer = mBezierCurveBuffer;
+	mIndexBuffer = NULL;
+	mPointBuffer = NULL;
+	mBezierCurveBuffer = NULL;
+	mParent->loadingFinished();
 }
 
 void FontLoaderTask::cleanUp(FT_Face face, FT_Library lib)

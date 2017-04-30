@@ -28,13 +28,7 @@ public:
 	__inline__ void setGlyphMetrics(const FT_Glyph_Metrics& metrics) { mGlyphMetrics = metrics; }
 	__inline__ const FT_Glyph_Metrics& getGlyphMetrics() const { return mGlyphMetrics; }
 
-	__inline__ void setRawBezierCurves(const BezierCurveList& bezierCurves) { mBezierKurves = bezierCurves; }
-	__inline__ const BezierCurveList& getRawBezierCurves() const { return mBezierKurves; }
 protected:
-
-	//BezierCurvesContainer mFinalBezierCurves;
-	BezierCurveList  mBezierKurves;
-	u32              mBezierCurvesCount;
 
 	u32				mDataBufferIndex;
 	// font data for rendering
