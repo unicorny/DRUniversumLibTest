@@ -46,9 +46,9 @@ DRReturn Geometrie::uploadToGPU()
 	glEnableVertexAttribArray(0);
 	int offset = 0;
 	int i = 0;
-	for (int y = 0; pow(2, y) < geometrie::GEOMETRIE_MAX; y++) {
+	for (int y = 0; (int)pow(2, y) < geometrie::GEOMETRIE_MAX; y++) {
 		//for(int x = 0; x < GEOMETRIE_MAX; x*=x)  {
-		int x = pow(2, y);
+		int x = (int)pow(2, y);
 		if (x & g->getFormatFlags()) {
 			int componentCount = 0;
 			if (x & geometrie::GEOMETRIE_2DVECTOR) {
@@ -72,6 +72,7 @@ DRReturn Geometrie::uploadToGPU()
 	
 	DR_SAVE_DELETE(mGeometrieModel);
 	//glBindVertexArray(0);
+	//EngineLog.writeToLog("[Geometrie::uploadToGPU] sum: %d ms", SDL_GetTicks() - startTicks);
 	if (DRGrafikError("error by uploading geometrie to GPU")) LOG_ERROR("error in geometrie", DR_ERROR);
 	return DR_OK;
 }

@@ -109,7 +109,7 @@ FontWeights FontManager::getFontWeight(const char* fontWeight)
 	if (!strcmp(fontWeight, "normal")) return FONT_WEIGHT_NORMAL;
 	else if (!strcmp(fontWeight, "italic")) return FONT_WEIGHT_ITALIC;
 	else if (!strcmp(fontWeight, "bold")) return FONT_WEIGHT_BOLD;
-	else if (!strcmp(fontWeight, "bold italic")) return FONT_WEIGHT_BOLD_ITALIC;
+	else if (!strcmp(fontWeight, "bold_italic")) return FONT_WEIGHT_BOLD_ITALIC;
 	return FONT_WEIGHT_NORMAL;
 }
 const char* FontManager::getFontWeight(FontWeights fontWeight)
@@ -118,7 +118,7 @@ const char* FontManager::getFontWeight(FontWeights fontWeight)
 	case FONT_WEIGHT_NORMAL: return "normal";
 	case FONT_WEIGHT_ITALIC: return "italic";
 	case FONT_WEIGHT_BOLD: return "bold";
-	case FONT_WEIGHT_BOLD_ITALIC: return "bold italic";
+	case FONT_WEIGHT_BOLD_ITALIC: return "bold_italic";
 	default: return "normal";
 	}
 	return "normal";

@@ -100,7 +100,11 @@ class ShaderProgramBinaryCompileTask : public UniLib::controller::GPUTask
 {
 public:
 	ShaderProgramBinaryCompileTask(ShaderProgram* shader, ShaderProgramBinary* binary)
-		: GPUTask(true), mShaderProgram(shader), mShaderProgramBinary(binary) {}
+		: GPUTask(true), mShaderProgram(shader), mShaderProgramBinary(binary) {
+#ifdef _UNI_LIB_DEBUG
+		setName(shader->getName());
+#endif
+	}
 	virtual DRReturn run();
 	virtual const char* getResourceType() const { return "ShaderProgramBinaryCompileTask"; };
 protected:

@@ -33,7 +33,7 @@ void TextureMaterial::bind()
 }
 void MultiTextureMaterial::bind()
 {
-	for (int i = 0; i < mTextureCount; i++) {
+	for (size_t i = 0; i < mTextureCount; i++) {
 		if (mTextures[i] && mTextures[i].getResourcePtrHolder())
 			mTextures[i]->bind();
 	}

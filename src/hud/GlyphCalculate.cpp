@@ -39,16 +39,17 @@ DRReturn GlyphGrid::addToGrid(u32 bezierIndex, DRVector2* vectors, u16 vectorCou
 	for (u32 i = 0; i < vectorCount; i++) {
 		for (int j = 0; j < 2; j++) {
 			if (vectors[i].c[j] >= 1.0f) {
-				//LOG_WARNING("drop curve, because outside of grid");
+				LOG_WARNING("drop curve, because outside of grid");
 				return DR_OK;
 			}
 		}
 	}
+	
 	// putting bezier curves into grid
 	DRVector2i gridIndexMin = GridNode::getGridIndex(bb.getMin(), stepSize);
 	DRVector2i gridIndexMax = GridNode::getGridIndex(bb.getMax(), stepSize);
 	int addCount = 0;
-	//printf("(%d) min: %d, %d, max: %d, %d\n", i, gridIndexMin.x, gridIndexMin.y, gridIndexMax.x, gridIndexMax.y);
+	//UniLib::EngineLog.writeToLog("(%d) min: %d, %d, max: %d, %d", bezierIndex, gridIndexMin.x, gridIndexMin.y, gridIndexMax.x, gridIndexMax.y);
 	for (int iy = gridIndexMin.y; iy <= gridIndexMax.y; iy++) {
 		for (int ix = gridIndexMin.x; ix <= gridIndexMax.x; ix++) {
 			int index = iy*mGridSize + ix;
@@ -57,6 +58,7 @@ DRReturn GlyphGrid::addToGrid(u32 bezierIndex, DRVector2* vectors, u16 vectorCou
 			addCount++;
 		}
 	}
+//	printf("addCount: %d\n", addCount);
 	if (!addCount) {
 		LOG_ERROR("couldn't add bezier curve to grid", DR_ERROR);
 	}
@@ -89,11 +91,13 @@ u32* GlyphGrid::getRaw(u32 &size, u32 c) const
 	u16 filledGridFieldsCount = 0;
 	for (int iGridCell = 0; iGridCell < mGridSize*mGridSize; iGridCell++) {
 		countJeCell[iGridCell] = mGridNodes[iGridCell].mIndices.size();
+		//UniLib::EngineLog.writeToLog("gridcell(%d): %d", iGridCell, mGridNodes[iGridCell].mIndices.size());
 		indicesSumCount += countJeCell[iGridCell];
 		if (countJeCell[iGridCell]) filledGridFieldsCount++;
 	}
 	// create out buffer
 	size = indicesSumCount + filledGridFieldsCount * 3 + 1;
+	//printf("size: %d, indicesSumCount: %d, filledGridFieldsCount: %d\n", size, indicesSumCount, filledGridFieldsCount);
 	u32* rawData = new u32[size];
 
 	// fill out buffer
@@ -116,9 +120,9 @@ u32* GlyphGrid::getRaw(u32 &size, u32 c) const
 		}
 
 	}
-	//return rawData;
+	return rawData;
 	//for debugging 
-	std::stringstream ss;
+	/*std::stringstream ss;
 	ss << "data/grid_cell_" << c << ".txt";
 	std::ofstream myfile;
 	myfile.open(ss.str());
@@ -203,7 +207,7 @@ DRReturn GlyphCalculate::loadGlyphInfos(FT_ULong c, FT_Face face)
 	//writeDebugInfos(c, face);
 	return DR_OK;
 }
-
+#define _CRT_SECURE_NO_WARNINGS
 void GlyphCalculate::writeDebugInfos(FT_ULong c, FT_Face face)
 {
 	//printf("family: %s, style name: %s, char: %c\n", face->family_name, face->style_name, (char)c);
@@ -384,6 +388,9 @@ DRReturn GlyphCalculate::calculateGrid(FontLoaderTask* parent, Glyph* glyph)
 		bezierData32 = (u32*)parent->mBezierCurveBuffer->data;
 	}
 	DRVector2* pointData = (DRVector2*)parent->mPointBuffer->data;
+	//printf("bezier curves size: %d\n", mBezierKurves.size());
+	//UniLib::EngineLog.writeToLog("boundingbox: %.0fx%.0f %.0fx%.0f", 
+		//mBoundingBox.getMin().x, mBoundingBox.getMin().y, mBoundingBox.getMax().x, mBoundingBox.getMax().y);
 	for (size_t i = 0; i < mBezierKurves.size(); i++) {
 		if (bezierData) {
 			u16* bezierIndices = &bezierData[mBezierIndices[i]];
@@ -411,10 +418,14 @@ DRReturn GlyphCalculate::calculateGrid(FontLoaderTask* parent, Glyph* glyph)
 
 DRReturn GlyphCalculate::addToGrid(u32 bezierIndex, DRVector2* vectors, u16 vectorCount)
 {
+
 	DRVector2* temp = new DRVector2[vectorCount];
 	for (u32 i = 0; i < vectorCount; i++) {
 		temp[i] = (vectors[i] - mBoundingBox.getMin()) / (DRVector2(mBoundingBox.getWidth(), mBoundingBox.getHeight())*1.1f);
 	}
-	return mGlyphGrid.addToGrid(bezierIndex, temp, vectorCount);
+
+	DRReturn result = mGlyphGrid.addToGrid(bezierIndex, temp, vectorCount);
+	DR_SAVE_DELETE_ARRAY(temp);
+	return result;
 }
 

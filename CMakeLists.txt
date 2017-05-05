@@ -42,13 +42,16 @@ find_library(UNIVERSUM_LIB DRUniversumLib PATHS ${PA})
 find_library(GLEW_32 glew32 PATHS ${PA})
 find_library(FREETYPE freetype PATHS ${PA})
 find_library(JSON json PATH ${PA})
-SET(LIBS ${CORE2_LIB} ${UNIVERSUM_LIB} Winmm ${GLEW_32} opengl32 ${SDL2_LIB} ${FREETYPE} ${JSON})
+find_library(JSON_D json_d PATH ${PA})
+SET(LIBS ${CORE2_LIB} ${UNIVERSUM_LIB} Winmm ${GLEW_32} opengl32 ${SDL2_LIB} ${FREETYPE})
 else(UNIX)
 SET(LIBS DRCore2 DRUniversumLib GLEW freetype)
 endif(WIN32)
 
 ADD_EXECUTABLE(MicroSpacecraft ${COMPLETE_SRC})
 TARGET_LINK_LIBRARIES(MicroSpacecraft ${LIBS})
+TARGET_LINK_LIBRARIES(MicroSpacecraft debug ${JSON_D})
+TARGET_LINK_LIBRARIES(MicroSpacecraft optimized ${JSON})
 
 SET_TARGET_PROPERTIES(MicroSpacecraft PROPERTIES EXECUTABLE_OUTPUT_PATH bin)
 

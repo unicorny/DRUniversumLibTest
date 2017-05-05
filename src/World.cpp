@@ -48,7 +48,7 @@ World::~World()
 DRReturn World::render(float timeSinceLastFrame)
 {
 	static float time = 0.0f;
-	time += timeSinceLastFrame*0.01;
+	time += timeSinceLastFrame*0.01f;
 	mWorldUniforms->setUniform("time", time);
 	if(time > 1000.0f) time = -1000.0f;
 	//mWorldUniforms->setUniform("view", gInputCamera->getCameraMatrix());

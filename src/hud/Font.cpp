@@ -91,7 +91,7 @@ std::queue<DRVector3> Font::getVerticesForGlyph(u32 c)
 			bezierCurveIndices.push_back(startIndex[indexCountIndex+iIndice+1]);
 		}
 	}
-	EngineLog.writeToLog("bezier curves indices count from grid: %d", bezierCurveIndices.size());
+	//EngineLog.writeToLog("bezier curves indices count from grid: %d", bezierCurveIndices.size());
 	// sort to kill doublets
 	//bezierCurveIndices.sort();
 

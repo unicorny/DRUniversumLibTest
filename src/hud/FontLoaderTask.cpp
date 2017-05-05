@@ -1,5 +1,6 @@
 #include "hud/FontLoaderTask.h"
 #include "controller/CPUSheduler.h"
+#include "controller/FileSavingTask.h"
 #include "hud/FontManager.h"
 
 using namespace UniLib;
@@ -13,11 +14,14 @@ FontLoaderTask::FontLoaderTask(controller::CPUSheduler* scheduler,
 	mFontManager(fontManager), mParent(parent), mFileName(fileName), mSplitDeep(splitDeep),
 	mFontInfos(NULL), mFontBinary(NULL), mBezierCurveCount(0), mPointCount(0)
 {
+#ifdef _UNI_LIB_DEBUG
+	setName(fileName);
+#endif
 	std::vector<std::string> fileNames;
 	fileNames.push_back(fileName);
 	fileNames.push_back(parent->getBinFileName());
 	
-	fontManager->getFontPath();
+	//fontManager->getFontPath();
 	controller::TaskPtr task(new controller::FileLoadingTask(this, fileNames));
 	setParentTaskPtrInArray(task, 0);
 }
@@ -28,11 +32,11 @@ FontLoaderTask::~FontLoaderTask()
 	DR_SAVE_DELETE(mFontBinary);
 }
 
-bool FontLoaderTask::getFileFromMemory(controller::FileInMemory** filesInMemory, size_t fileCount)
+bool FontLoaderTask::getFileFromMemory(DRVirtualFile** filesInMemory, size_t fileCount)
 {
 	assert(fileCount == 2);
-	mFontInfos = filesInMemory[0];
-	mFontBinary = filesInMemory[1];
+	mFontInfos = static_cast<DRVirtualBinaryFile*>(filesInMemory[0]);
+	mFontBinary = static_cast<DRVirtualCustomFile*>(filesInMemory[1]);
 	return false;
 }
 
@@ -43,8 +47,8 @@ void FontLoaderTask::finishFileLoadingTask()
 
 DRReturn FontLoaderTask::run()
 {
-	assert(mFontInfos->data != NULL);
-	assert(mFontInfos->size > 0);
+	assert(mFontInfos->getData() != NULL);
+	assert(mFontInfos->getSize() > 0);
 
 	Uint32 startTicks = SDL_GetTicks();
 	Uint32 gStartTicks = startTicks;
@@ -59,7 +63,7 @@ DRReturn FontLoaderTask::run()
 		LOG_ERROR("error by loading freetype lib", DR_ERROR);
 	}
 	// loading font
-	error = FT_New_Memory_Face(freeTypeLibrayHandle, (FT_Byte*)mFontInfos->data, mFontInfos->size, 0, &font);
+	error = FT_New_Memory_Face(freeTypeLibrayHandle, (FT_Byte*)mFontInfos->getData(), mFontInfos->getSize(), 0, &font);
 	if (error == FT_Err_Unknown_File_Format)
 	{
 		LOG_ERROR("Font format unsupported", DR_ERROR);
@@ -116,7 +120,6 @@ DRReturn FontLoaderTask::run()
 			bezierCurveBufferCount += (*it)->getNodeCount();
 		}
 	}
-
 	// clean up
 	cleanUp(font, freeTypeLibrayHandle);
 	// exit if binary was valid
@@ -163,7 +166,7 @@ DRReturn FontLoaderTask::run()
 		mBezierCurveBuffer = new DataBuffer(sizeof(u16), bezierCountShort);
 		bezierIndices = (u16*)mBezierCurveBuffer->data;
 	}
-	u32 index = 0;
+	u16 index = 0;
 
 	std::map< u16, u16> newBezierIndices;
 	// add and update indices
@@ -178,7 +181,7 @@ DRReturn FontLoaderTask::run()
 			if (bezierIndices) bezierIndices[index++] = c.indices[i];
 			else if (bezierIndices32) bezierIndices32[index++] = c.count;
 		}
-		assert(index < bezierCurveBufferCount);
+		assert(index <= bezierCurveBufferCount);
 	}
 	
 	// set new indices
@@ -207,6 +210,7 @@ DRReturn FontLoaderTask::run()
 
 	// create grid buffer
 	u16 shortGridBufferSize = gridBufferSize;
+	//UniLib::EngineLog.writeToLog("gridBuffer size: %d", gridBufferSize);
 	if ((u32)shortGridBufferSize != gridBufferSize) {
 		LOG_ERROR("grid buffer element count exceed short data range!", DR_ERROR);
 	}
@@ -237,10 +241,63 @@ DRReturn FontLoaderTask::run()
 		(float)bezierCurveBufferCount*(float)sizeof(u16) / 1024.0f, bezierCurveBufferCount,
 		summe);
 	
+	saveBinaryToFile();
 	finish();
 
 	return DR_OK;
 }
+
+void FontLoaderTask::saveBinaryToFile()
+{
+	std::string fileName = mParent->getBinFileName();
+	DRVirtualCustomFile* ppFile = new DRVirtualCustomFile();
+	DRVirtualCustomFile& file = *ppFile;
+	file << (u32)BINARY_FILE_VERSION;
+	// save glyphen map
+	file << (u16)mParent->mGlyphenMap.size();
+	for (GlyphenMap::iterator it = mParent->mGlyphenMap.begin(); it != mParent->mGlyphenMap.end(); it++) {
+		file << it->first << it->second->getDataBufferIndex();
+	}
+	// save buffer
+	for (int i = 0; i < 3; i++) {
+		file << mBuffer[i]->sizePerIndex << mBuffer[i]->indexCount;
+		file.write(new DRFilePart::Binary(mBuffer[i]->data, mBuffer[i]->size(), false, false));
+	}
+	controller::TaskPtr task(new controller::FileSavingTask(fileName.data(), ppFile));
+	task->scheduleTask(task);
+}
+
+bool FontLoaderTask::extractBinary()
+{
+	if (!mFontBinary) return false;
+	DRVirtualCustomFile& file = *mFontBinary;
+	u32 version = file;
+	if (version != BINARY_FILE_VERSION) {
+		LOG_WARNING("wrong binary version");
+		return false;
+	}
+	// load glyphen map
+	u16 count = file;
+	for (u16 i = 0; i < count; i++) {
+		u32 index = file, dataBufferIndex = file;
+		
+		Glyph* g = new Glyph;
+		g->setDataBufferIndex(dataBufferIndex);
+		mParent->mGlyphenMap.insert(GlyphenPair(index, g));
+	}
+	// load buffer
+	for (int i = 0; i < 3; i++) {
+		u8 sizePerIndex = file;
+		u32 indexCount = file;
+		DRFilePart::Binary*  bin = static_cast<DRFilePart::Binary*>(mFontBinary->read());
+		bin->setFreeMemory(false);
+		mBuffer[i] = new DataBuffer(sizePerIndex, indexCount);
+		mBuffer[i]->data = bin->data();
+	}
+	DR_SAVE_DELETE(mFontBinary);
+	return true;
+}
+
 
 void FontLoaderTask::finish()
 {
@@ -260,10 +317,6 @@ void FontLoaderTask::cleanUp(FT_Face face, FT_Library lib)
 	FT_Done_FreeType(lib);
 }
 
-bool FontLoaderTask::extractBinary()
-{
-	return false;
-}
 
 int FontLoaderTask::getIndexOfPointInMap(DRVector2 point)
 {
@@ -303,7 +356,7 @@ u32 FontLoaderTask::getIndexOfBezierMap(const DRBezierCurve& bezierCurve)
 	return ++mBezierCurveCount - 1;
 }
 
-
+#define _CRT_SECURE_NO_WARNINGS
 void FontLoaderTask::writeDebugInfos(FT_Face font)
 {
 	FT_BBox ff_boundingBox = font->bbox;

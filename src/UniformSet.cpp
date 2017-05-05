@@ -73,7 +73,7 @@ void UniformSet::updateUniforms(model::ShaderProgram* program)
 			GLint loc = glGetUniformLocation(shader->getProgram(), entry->name.data());
 			DRReturn result = addUniformMapping(entry->name.data(), (void*)loc, program->getID());
 			if (result || DRGrafikError("error by getting uniform location")) {
-				LOG_WARNING("Error by addLocationToUniform", DR_ERROR);
+				LOG_WARNING("Error by addLocationToUniform");
 				continue;
 			}
 		}

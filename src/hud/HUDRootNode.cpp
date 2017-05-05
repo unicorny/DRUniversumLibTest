@@ -121,6 +121,7 @@ namespace HUD {
 			mFontManager->setGlyphMap(glyphsMap);
 		}
 
+
 		if (fonts.isArray()) {
 			for (int i = 0; i < fonts.size(); i++) {
 				Json::Value font = fonts[i];

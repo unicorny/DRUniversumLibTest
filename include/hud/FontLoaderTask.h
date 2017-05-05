@@ -16,7 +16,7 @@
 * \desc: Task for loading font from original or binary file
 *
 */
-#define BINARY_FILE_VERSION 1
+#define BINARY_FILE_VERSION 3
 
 class FontLoaderTask : public UniLib::controller::CPUTask, public UniLib::controller::FileLoadingReciver
 {
@@ -27,13 +27,14 @@ public:
 
 	virtual const char* getResourceType() const { return "FontLoader"; };
 	virtual DRReturn run();
-	virtual bool getFileFromMemory(UniLib::controller::FileInMemory** filesInMemory, size_t fileCount);
+	virtual bool getFileFromMemory(DRVirtualFile** filesInMemory, size_t fileCount);
 	virtual void finishFileLoadingTask();
 
 	__inline__ u8 getSplitDeep() const { return mSplitDeep; }
 protected:
 	// return true if success
 	bool extractBinary();
+	void saveBinaryToFile();
 	void writeDebugInfos(FT_Face font);
 	void cleanUp(FT_Face face, FT_Library lib);
 	int getIndexOfPointInMap(DRVector2 point);
@@ -49,8 +50,8 @@ protected:
 	int mSplitDeep;
 
 	// cache
-	UniLib::controller::FileInMemory* mFontInfos;
-	UniLib::controller::FileInMemory* mFontBinary;
+	DRVirtualBinaryFile* mFontInfos;
+	DRVirtualCustomFile* mFontBinary;
 
 	struct BezierCurve64 {
 		BezierCurve64(): count(0), indices() {}
@@ -75,9 +76,16 @@ protected:
 	BezierCurve64Map					mBezierCurvesMap;
 
 	// output
-	DataBuffer* mIndexBuffer;
-	DataBuffer* mPointBuffer;
-	DataBuffer* mBezierCurveBuffer;
+
+
+	union {
+		struct {
+			DataBuffer* mIndexBuffer;
+			DataBuffer* mPointBuffer;
+			DataBuffer* mBezierCurveBuffer;
+		};
+		DataBuffer* mBuffer[3];
+	};
 };
 
 

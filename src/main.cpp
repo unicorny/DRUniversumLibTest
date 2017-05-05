@@ -34,6 +34,7 @@
 #include "controller/InputCamera.h"
 #include <sdl/SDL_opengl.h>
 
+#define _CRT_SECURE_NO_WARNINGS
 
 using namespace UniLib;
 
@@ -222,7 +223,7 @@ DRReturn load()
 	//SDL_GL_SetSwapInterval(1);
 
 	// set background color
-	glClearColor( 0.0, 0.0, 0.2, 1.0 );
+	glClearColor( 0.0f, 0.0f, 0.2f, 1.0f );
 	DRGrafikError("after setting clear color");
 
 	//OpenGL einrichten für Ohrtogonale Projection
@@ -232,8 +233,8 @@ DRReturn load()
 	
 	DRGrafikError("after setting opengl states");
 
-	g_v2WindowLength.x = static_cast<float>(w);
-	g_v2WindowLength.y = static_cast<float>(h);
+	g_v2WindowLength.x = w;
+	g_v2WindowLength.y = h;
 
 	EngineLog.writeToLog("time after creating renderer: %d ms", SDL_GetTicks());
 
@@ -278,8 +279,8 @@ DRReturn load()
 
 	// Kamera
 	gInputCamera = new controller::InputCamera(80.0f, 1.0f, 45.0f);
-	//gInputCamera->getPosition()->setPosition(DRVector3(0.0f, 0.0f, -400.0f));
-	gInputCamera->setAspectRatio(g_v2WindowLength.x / g_v2WindowLength.y);
+	gInputCamera->getPosition()->setPosition(DRVector3(-20.0f, -30.0f, -130.0f));
+	gInputCamera->setAspectRatio((float)g_v2WindowLength.x / (float)g_v2WindowLength.y);
 	gInputCamera->setFarClipping(1000.0f);
 	
 	// HUD
