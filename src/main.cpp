@@ -83,6 +83,116 @@ DRReturn DRGrafikError(const char* pcErrorMessage)
 }
 //******************************************************************************************************
 
+class AsycLoadTask : public controller::CPUTask
+{
+public:
+	AsycLoadTask(controller::CPUSheduler* sheduler) : CPUTask(sheduler) {}
+	DRReturn run() {
+		// init input controls
+		controller::InputControls* input = controller::InputControls::getInstance();
+		input->setMapping(SDL_SCANCODE_LEFT, controller::INPUT_ROTATE_LEFT);
+		input->setMapping(SDL_SCANCODE_RIGHT, controller::INPUT_ROTATE_RIGHT);
+		input->setMapping(SDL_SCANCODE_PAGEUP, controller::INPUT_STRAFE_UP);
+		input->setMapping(SDL_SCANCODE_PAGEDOWN, controller::INPUT_STRAFE_DOWN);
+		input->setMapping(SDL_SCANCODE_Q, controller::INPUT_TILT_LEFT);
+		input->setMapping(SDL_SCANCODE_E, controller::INPUT_TILT_RIGHT);
+
+		input->setMapping(SDL_SCANCODE_UP, controller::INPUT_ACCELERATE);
+		input->setMapping(SDL_SCANCODE_DOWN, controller::INPUT_RETARD);
+		input->setMapping(SDL_SCANCODE_A, controller::INPUT_STRAFE_LEFT);
+		input->setMapping(SDL_SCANCODE_D, controller::INPUT_STRAFE_RIGHT);
+		input->setMapping(SDL_SCANCODE_W, controller::INPUT_ROTATE_UP);
+		input->setMapping(SDL_SCANCODE_S, controller::INPUT_ROTATE_DOWN);
+
+		// init folders
+		DRFileManager::getSingleton().addOrdner("data/shader");
+		DRFileManager::getSingleton().addOrdner("data/material");
+		DRFileManager::getSingleton().addOrdner("data/languages");
+		DRFileManager::getSingleton().addOrdner("data/textures");
+
+		// init shader manager
+		controller::ShaderManager* shaderManager = controller::ShaderManager::getInstance();
+		shaderManager->init();
+
+		// init texture manager, timer, other manager
+		gTimer = new lib::Timer;
+		controller::TextureManager* textureManager = controller::TextureManager::getInstance();
+		textureManager->init(gTimer);
+		std::list<std::string> configFileNames;
+		configFileNames.push_back("defaultMaterials.json");
+		controller::BlockTypeManager::getInstance()->initAsyn(&configFileNames, gCPUScheduler);
+		controller::BaseGeometrieManager::getInstance()->init(gCPUScheduler);
+
+		//Zufalllsgenerator starten
+#ifdef _WIN32
+		DRRandom::seed(timeGetTime());
+#else
+		DRRandom::seed(SDL_GetTicks());
+#endif //_WIN32
+
+		// World init
+		gWorld = new World();
+
+		// adding floor
+		model::geometrie::Plane* pl = new model::geometrie::Plane(model::geometrie::GEOMETRIE_VERTICES);
+		Geometrie* geo = new Geometrie(pl);
+		view::GeometriePtr ptr(geo);
+		view::VisibleNode* floor = new view::VisibleNode;
+
+		TextureMaterial* mat = new TextureMaterial;
+		view::TexturePtr texture = textureManager->getEmptyTexture(DRVector2i(512, 512), GL_RGBA);
+		view::MaterialPtr materialPtr = view::MaterialPtr(mat);
+		mat->setShaderProgram(shaderManager->getShaderProgram("simple", "simple.vert", "simple.frag"));
+		mat->setTexture(texture);
+		floor->setMaterial(materialPtr);
+		floor->setGeometrie(ptr);
+		model::Position* pos = floor->getPosition();
+		pos->setScale(DRVector3(400.0f));
+		pos->setPosition(DRVector3(-200.0f, -50.0f, -200.0f));
+
+		// render to texture test
+		generator::RenderToTexture* testTask = new generator::RenderToTexture(texture);
+#ifdef _UNI_LIB_DEBUG
+		testTask->setName("renderTest");
+#endif
+		Material* renderMaterial = new Material;
+		renderMaterial->setShaderProgram(shaderManager->getShaderProgram("frameBufer", "frameBuffer.vert", "speedTest.frag"));
+		testTask->setMaterial(renderMaterial);
+		controller::TaskPtr renderTestTask(testTask);
+		testTask->scheduleTask(renderTestTask);
+
+		// first block
+		//model::block::BlockPtr block = model::block::BlockPtr(new model::block::Block("_MATERIAL_NAME_STEEL"));
+		//EngineLog.writeToLog("creating block: %s", block->getBlockType()->asString().data());
+		//std::queue<u8> path;
+		//path.push(4);
+		//gWorld->getSpaceCraftNode()->addBlock(block, path, DRVector3i(4, 5, 4));
+
+		// Kamera
+		gInputCamera = new controller::InputCamera(80.0f, 1.0f, 45.0f);
+		gInputCamera->getPosition()->setPosition(DRVector3(-20.0f, -30.0f, -130.0f));
+		
+		gInputCamera->setFarClipping(1000.0f);
+
+		// HUD
+		g_HUDRootNode = new HUD::RootNode();
+		UniLib::controller::LoadingTimeCommand* cmd = new UniLib::controller::LoadingTimeCommand("Font Loading Time: ", SDL_GetTicks());
+		g_HUDRootNode->init(g_v2WindowLength, "data/material/hud.json", cmd);
+		//HUD::ContainerNode* debugStatsContainer = new HUD::ContainerNode("debugStats", g_HUDRootNode);
+		//HUD::Text* testText = new HUD::Text("test", debugStatsContainer, "Test");
+		//testText->setPosition(DRVector2(0.0f));
+		gWorld->addStaticGeometrie(floor);
+		//*/
+		// loading from json
+		// TODO: parallele load with CPUTasks
+
+		controller::GPUScheduler* gpuScheduler = controller::GPUScheduler::getInstance();
+
+
+		return DR_OK;
+	}
+};
+
 
 DRReturn load()
 {
@@ -90,23 +200,16 @@ DRReturn load()
 	UniLib::init(2);
 	UniLib::setBindToRenderer(&gBindToRender);
 
+	int L1CacheSize = SDL_GetCPUCacheLineSize();
+	int CPUCoreCount = SDL_GetCPUCount();
+	EngineLog.writeToLog("L1 CPU Cache Size: %d KByte, CPU Core Count: %d", L1CacheSize, CPUCoreCount);
+	gCPUScheduler = new controller::CPUSheduler(CPUCoreCount, "mainSch");
+	// loads everything which don't need in same thread as SDL Loading
+	controller::TaskPtr asycLoad(new AsycLoadTask(gCPUScheduler));
+	asycLoad->scheduleTask(asycLoad);
+
 	controller::GPUScheduler::getInstance()->registerGPURenderCommand(&preRenderCall, controller::GPU_SCHEDULER_COMMAND_PREPARE_RENDERING);
 	controller::GPUScheduler::getInstance()->registerGPURenderCommand(&mainRenderCall, controller::GPU_SCHEDULER_COMMAND_AFTER_AFTER_RENDERING);
-	
-	controller::InputControls* input = controller::InputControls::getInstance();
-	input->setMapping(SDL_SCANCODE_LEFT, controller::INPUT_ROTATE_LEFT);
-	input->setMapping(SDL_SCANCODE_RIGHT, controller::INPUT_ROTATE_RIGHT);
-	input->setMapping(SDL_SCANCODE_PAGEUP, controller::INPUT_STRAFE_UP);
-	input->setMapping(SDL_SCANCODE_PAGEDOWN, controller::INPUT_STRAFE_DOWN);
-	input->setMapping(SDL_SCANCODE_Q, controller::INPUT_TILT_LEFT);
-	input->setMapping(SDL_SCANCODE_E, controller::INPUT_TILT_RIGHT);
-
-	input->setMapping(SDL_SCANCODE_UP, controller::INPUT_ACCELERATE);
-	input->setMapping(SDL_SCANCODE_DOWN, controller::INPUT_RETARD);
-	input->setMapping(SDL_SCANCODE_A, controller::INPUT_STRAFE_LEFT);
-	input->setMapping(SDL_SCANCODE_D, controller::INPUT_STRAFE_RIGHT);
-	input->setMapping(SDL_SCANCODE_W, controller::INPUT_ROTATE_UP);
-	input->setMapping(SDL_SCANCODE_S, controller::INPUT_ROTATE_DOWN);
 	
 	if(SDL_Init(SDL_INIT_VIDEO) < 0)
 	{
@@ -114,36 +217,9 @@ DRReturn load()
 		LOG_ERROR("Fehler bei SDL Init", DR_ERROR);
 	}
 	EngineLog.writeToLog("SDL-Version: %d", SDL_COMPILEDVERSION);
-	DRFileManager::getSingleton().addOrdner("data/shader");
-	DRFileManager::getSingleton().addOrdner("data/material");
-	DRFileManager::getSingleton().addOrdner("data/languages");
-	DRFileManager::getSingleton().addOrdner("data/textures");
-	controller::ShaderManager* shaderManager = controller::ShaderManager::getInstance();
-	shaderManager->init();
-
-	
-	int L1CacheSize = SDL_GetCPUCacheLineSize();
-	int CPUCoreCount = SDL_GetCPUCount();
-	EngineLog.writeToLog("L1 CPU Cache Size: %d KByte, CPU Core Count: %d", L1CacheSize, CPUCoreCount);
-	gCPUScheduler = new controller::CPUSheduler(CPUCoreCount, "mainSch");
-	gTimer = new lib::Timer;
-	controller::TextureManager* textureManager = controller::TextureManager::getInstance();
-	textureManager->init(gTimer);
-	std::list<std::string> configFileNames;
-	configFileNames.push_back("defaultMaterials.json");
-	controller::BlockTypeManager::getInstance()->initAsyn(&configFileNames, gCPUScheduler);
-	controller::BaseGeometrieManager::getInstance()->init(gCPUScheduler);
-//	controller::BlockMaterialManager::getInstance()->init("defaultMaterials.json");
 
 	//Not Exit Funktion festlegen
 	atexit(SDL_Quit);
-
-	//Zufalllsgenerator starten
-#ifdef _WIN32
-	DRRandom::seed(timeGetTime());
-#else
-	DRRandom::seed(SDL_GetTicks());
-#endif //_WIN32
 
 	Uint32 flags = 0;
 	//if(video.isFullscreen())
@@ -161,7 +237,7 @@ DRReturn load()
 	SDL_GL_SetAttribute(SDL_GL_DOUBLEBUFFER, 1);
 	SDL_GL_SetAttribute(SDL_GL_DEPTH_SIZE, 24);
 
-
+	Uint32 ticks = SDL_GetTicks();
 #ifndef _DEBUG
 	//g_pSDLWindow = SDL_SetVideoMode(XWIDTH, YHEIGHT, 32, flags
 	g_pSDLWindow = SDL_CreateWindow("Micro Spacecraft", SDL_WINDOWPOS_UNDEFINED, SDL_WINDOWPOS_UNDEFINED, 800, 600, flags);
@@ -171,7 +247,7 @@ DRReturn load()
 #endif //_DEBUG
 	//SDL_SysWMinfo* handle = NULL;
 	//SDL_GetWindowWMInfo(g_pSDLWindow, handle);
-
+	UniLib::EngineLog.writeToLog("%d ms creating window", SDL_GetTicks() - ticks);
 	
 
 	if(!g_pSDLWindow)
@@ -235,65 +311,9 @@ DRReturn load()
 
 	g_v2WindowLength.x = w;
 	g_v2WindowLength.y = h;
+	gInputCamera->setAspectRatio((float)g_v2WindowLength.x / (float)g_v2WindowLength.y);
 
 	EngineLog.writeToLog("time after creating renderer: %d ms", SDL_GetTicks());
-
-	// World init
-	gWorld = new World();
-
-	// adding floor
-	model::geometrie::Plane* pl = new model::geometrie::Plane(model::geometrie::GEOMETRIE_VERTICES);
-	Geometrie* geo = new Geometrie(pl);
-	view::GeometriePtr ptr(geo);
-	view::VisibleNode* floor = new view::VisibleNode;
-	
-	TextureMaterial* mat = new TextureMaterial;
-	view::TexturePtr texture = textureManager->getEmptyTexture(DRVector2i(512, 512), GL_RGBA);
-	view::MaterialPtr materialPtr = view::MaterialPtr(mat);
-	mat->setShaderProgram(shaderManager->getShaderProgram("simple", "simple.vert", "simple.frag"));
-	mat->setTexture(texture);
-	floor->setMaterial(materialPtr);
-	floor->setGeometrie(ptr);
-	model::Position* pos = floor->getPosition();
-	pos->setScale(DRVector3(400.0f));
-	pos->setPosition(DRVector3(-200.0f, -50.0f, -200.0f));
-
-	// render to texture test
-	generator::RenderToTexture* testTask = new generator::RenderToTexture(texture);
-#ifdef _UNI_LIB_DEBUG
-	testTask->setName("renderTest");
-#endif
-	Material* renderMaterial = new Material;
-	renderMaterial->setShaderProgram(shaderManager->getShaderProgram("frameBufer", "frameBuffer.vert", "speedTest.frag"));
-	testTask->setMaterial(renderMaterial);
-	controller::TaskPtr renderTestTask(testTask);
-	testTask->scheduleTask(renderTestTask);
-
-
-	// first block
-	model::block::BlockPtr block = model::block::BlockPtr(new model::block::Block("_MATERIAL_NAME_STEEL"));
-	//EngineLog.writeToLog("creating block: %s", block->getBlockType()->asString().data());
-	std::queue<u8> path;
-	path.push(4);
-	gWorld->getSpaceCraftNode()->addBlock(block, path, DRVector3i(4, 5, 4));
-
-	// Kamera
-	gInputCamera = new controller::InputCamera(80.0f, 1.0f, 45.0f);
-	gInputCamera->getPosition()->setPosition(DRVector3(-20.0f, -30.0f, -130.0f));
-	gInputCamera->setAspectRatio((float)g_v2WindowLength.x / (float)g_v2WindowLength.y);
-	gInputCamera->setFarClipping(1000.0f);
-	
-	// HUD
-	g_HUDRootNode = new HUD::RootNode();
-	UniLib::controller::LoadingTimeCommand* cmd = new UniLib::controller::LoadingTimeCommand("Font Loading Time: ", SDL_GetTicks());
-	g_HUDRootNode->init(g_v2WindowLength, "data/material/hud.json", cmd);
-	//HUD::ContainerNode* debugStatsContainer = new HUD::ContainerNode("debugStats", g_HUDRootNode);
-	//HUD::Text* testText = new HUD::Text("test", debugStatsContainer, "Test");
-	//testText->setPosition(DRVector2(0.0f));
-	gWorld->addStaticGeometrie(floor);
-	//*/
-	// loading from json
-	// TODO: parallele load with CPUTasks
 
 	//g_FrameBuffer.init();
 	DRGrafikError("on init end");
@@ -331,8 +351,10 @@ DRReturn gameLoop()
 			LOG_ERROR("error in input loop", DR_ERROR);
 		}
 		if(input->isKeyPressed(SDL_SCANCODE_ESCAPE)) return DR_OK;
-		gInputCamera->updateDirectlyFromKeyboard();
-		gInputCamera->updateCameraMatrix();
+		if (gInputCamera) {
+			gInputCamera->updateDirectlyFromKeyboard();
+			gInputCamera->updateCameraMatrix();
+		}
 		char buffer[256]; memset(buffer, 0, 256);
 		sprintf(buffer, "FPS: %f", 1.0f/(float)gpuScheduler->getSecondsSinceLastFrame());
 		SDL_SetWindowTitle(g_pSDLWindow, buffer);
