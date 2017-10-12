@@ -45,7 +45,9 @@ public:
 	//! \param finishCommand will called, after all fonts have finished loading
 	void calculateFonts(UniLib::controller::Command* finishCommand = NULL);
 
-	__inline__ Font* getFont(const char* fontName, FontWeights weight = FONT_WEIGHT_NORMAL) { return getFont(DRMakeDoubleHash(getFontWeight(weight), fontName)); }
+	__inline__ Font* getFont(const char* fontName, FontWeights weight = FONT_WEIGHT_NORMAL) {
+		return getFont(DRMakeDoubleHash(getFontWeight(weight), fontName)); 
+	}
 	__inline__ Font* getFont(DHASH id) {
 		return mFonts.s_find(id);
 	}

@@ -255,18 +255,20 @@ DRReturn load()
 		EngineLog.writeToLog("Konnte Bildschirmmodus nicht setzen!: %s\n", SDL_GetError());
 		return DR_ERROR;
 	}
+	ticks = SDL_GetTicks();
 	g_glContext = SDL_GL_CreateContext(g_pSDLWindow);
 	if(!g_glContext)
 	{
 		EngineLog.writeToLog("Fehler beim erstellen des OpenGL Contextes: %s\n", SDL_GetError());
 		return DR_ERROR;
 	}
-	
+	UniLib::EngineLog.writeToLog("%d ms creating OpenGL Context", SDL_GetTicks() - ticks);
+	ticks = SDL_GetTicks();
 	if(SDL_GL_MakeCurrent(g_pSDLWindow, g_glContext))
 	{
 		EngineLog.writeToLog("Fehler beim aktivieren des OpenGL Contextes: %s\n", SDL_GetError());
 	};
-	
+	UniLib::EngineLog.writeToLog("%d ms making OpenGL Context current", SDL_GetTicks() - ticks);
 	glewExperimental = GL_TRUE;
 	GLenum status = glewInit();
 	// glew init throw an error, we can savely ignore it
