@@ -8,7 +8,7 @@ namespace HUD {
 		: Element(name, parent), mText(text), mFontSize(fontSize), mTextColor(textColor)
 	{
 		FontManager* fm = getRootNode()->getFontManager();
-		mFont = fm->getDefaultFont();
+		mFont = fm->getDefaultFont()->getFont();
 		mMaterial = fm->getMaterial();
 		
 	}
@@ -20,7 +20,7 @@ namespace HUD {
 	DRReturn Text::move()
 	{
 		if (!mFont) {
-			mFont = getRootNode()->getFontManager()->getDefaultFont();
+			mFont = getRootNode()->getFontManager()->getDefaultFont()->getFont();
 		}
 		return DR_OK;
 	}

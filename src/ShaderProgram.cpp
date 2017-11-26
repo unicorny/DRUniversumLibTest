@@ -50,8 +50,6 @@ DRReturn Shader::init(const char* shaderFile, UniLib::model::ShaderType shaderTy
 			UniLib::EngineLog.writeToLog("<font color='red'>Fehler:</font>shader (%s) compile error: %s", shaderFile, str);
 	}
 	if(DRGrafikError("Shader::init create Shader")) LOG_WARNING("Fehler bei shader init");	
-	
-
 	return DR_OK;
 }
 
@@ -186,6 +184,7 @@ void ShaderProgram::parseShaderData(void* data)
 			return;
 		}
 		else {
+
 			callLoadingCommand();
 			return;
 		}
@@ -234,6 +233,7 @@ void ShaderProgram::parseShaderData(void* data)
 			// get binary size
 			GLint binaryFormatCount = 0;
 			glGetIntegerv(GL_NUM_PROGRAM_BINARY_FORMATS, &binaryFormatCount);
+			DRGrafikError("error getting GL_NUM_PROGRAM_BINARY_FORMATS");
 			if (binaryFormatCount > 0) {
 				glGetProgramiv(mProgram, GL_PROGRAM_BINARY_LENGTH, &binary->mBinaryDataLength);
 				DRGrafikError("error getting shader program binary size");
@@ -271,6 +271,7 @@ DRReturn ShaderProgramBinarySaveTask::run()
 
 DRReturn ShaderProgramBinaryLoadTask::run()
 {
+	// check if current openGL version support shader binaries
 	DRFile f(mFilename.data(), "rb");
 	ShaderProgramBinary* binary = new ShaderProgramBinary(mFilename);
 	if (f.isOpen()) {

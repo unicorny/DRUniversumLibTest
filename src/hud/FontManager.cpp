@@ -1,6 +1,7 @@
 #include "hud/FontManager.h"
 #include "hud/Font.h"
 #include "hud/FontLoaderTask.h"
+#include "hud/TextManager.h"
 
 #include "controller/CPUSheduler.h"
 
@@ -54,8 +55,9 @@ DRReturn FontManager::addFont(const char* fontName, const char* fontPath, const 
 	fullName += "_";
 	fullName += weight;
 	Font* font = new Font(this, fullName.data());
-	Font* dublette = NULL;
-	if (mFonts.s_add(id, font, &dublette)) {
+	TextManager* textManager = new TextManager(font);
+	TextManager* dublette = NULL;
+	if (mFonts.s_add(id, textManager, &dublette)) {
 		EngineLog.writeToLog("Hash Collision with font: %s", fontName);
 		delete font;
 		return DR_ERROR;
@@ -81,7 +83,7 @@ void FontManager::finishedLoading()
 		mFontCalculatingFinishCommand = NULL;
 		u32 summe = 0;
 		for (FontMap::iterator it = mFonts.begin(); it != mFonts.end(); it++) {
-			summe += it->second->getBufferSizeSum();
+			summe += it->second->getFont()->getBufferSizeSum();
 		}
 		float kByte = (float)summe / 1024.0f;
 		EngineLog.writeToLog("Memory Consumption for %d fonts: %.3f kByte", 

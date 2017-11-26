@@ -36,7 +36,7 @@ protected:
 class TexturePushToGPUTask : public UniLib::controller::GPUTask
 {
 public:
-	TexturePushToGPUTask(Texture* caller) : GPUTask(true), mCaller(caller) {};
+	TexturePushToGPUTask(Texture* caller) : GPUTask(UniLib::GPU_TASK_SLOW), mCaller(caller) {};
 	virtual ~TexturePushToGPUTask() {};
 
 	virtual DRReturn run();

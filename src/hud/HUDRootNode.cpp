@@ -11,6 +11,7 @@
 #include "Material.h"
 #include "hud/FontManager.h"
 #include "hud/TextGeom.h"
+#include "hud/TextManager.h"
 
 using namespace UniLib;
 
@@ -167,7 +168,7 @@ namespace HUD {
 
 			if (!mFont) {
 				// test
-				mFont = mFontManager->getDefaultFont();
+				mFont = mFontManager->getDefaultFont()->getFont();
 			}
 			if(mFont && mFont->checkLoadingState() == LOADING_STATE_FULLY_LOADED && !mTextGeom) {
 

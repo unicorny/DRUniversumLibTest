@@ -4,6 +4,7 @@
 #include "lib/MultithreadMap.h"
 #include "controller/Command.h"
 #include "MicroSpacecraft.h"
+#include "TextManager.h"
 
 #include "ft2build.h"
 #include FT_FREETYPE_H
@@ -45,13 +46,13 @@ public:
 	//! \param finishCommand will called, after all fonts have finished loading
 	void calculateFonts(UniLib::controller::Command* finishCommand = NULL);
 
-	__inline__ Font* getFont(const char* fontName, FontWeights weight = FONT_WEIGHT_NORMAL) {
+	__inline__ TextManager* getFont(const char* fontName, FontWeights weight = FONT_WEIGHT_NORMAL) {
 		return getFont(DRMakeDoubleHash(getFontWeight(weight), fontName)); 
 	}
-	__inline__ Font* getFont(DHASH id) {
+	__inline__ TextManager* getFont(DHASH id) {
 		return mFonts.s_find(id);
 	}
-	__inline__ Font* getDefaultFont() { return getFont(mDefaultFontHash); }
+	__inline__ TextManager* getDefaultFont() { return getFont(mDefaultFontHash); }
 	__inline__ UniLib::view::MaterialPtr getMaterial() { return mMaterial; }
 	__inline__ UniLib::controller::CPUSheduler* getLoadingScheduler() { return mLoadingScheduler; }
 	__inline__ const u32* getGlyphMap(int* mGlypCount) const { *mGlypCount = mGlyphCount; return mGlyphMap; }
@@ -63,7 +64,7 @@ public:
 
 	void setGlyphMap(std::queue<u32>& glyph);
 protected:
-	typedef UniLib::lib::MultithreadMap<DHASH, Font*> FontMap;
+	typedef UniLib::lib::MultithreadMap<DHASH, TextManager*> FontMap;
 	void finishedLoading();
 
 	UniLib::controller::CPUSheduler*	mLoadingScheduler;

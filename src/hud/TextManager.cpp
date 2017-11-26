@@ -1,6 +1,14 @@
 #include "hud/TextManager.h"
 #include "hud/TextToRender.h"
 #include "model/Position.h"
+#include "hud/Font.h"
+
+TextManager::~TextManager() 
+{
+	mDeleteBuffer.clear();
+	mTextEntrys.s_clear();
+	DR_SAVE_DELETE(mFont);
+}
 
 DHASH TextManager::addTextAbs(const char* name, const char* string, DRVector2 sizeInPx, DRVector3 posInPx, bool cashed/* = true*/)
 {

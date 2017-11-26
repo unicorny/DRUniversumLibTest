@@ -15,10 +15,10 @@ namespace HUD {
 
 		__inline__ Text* setFont(Font* font) { mFont = font; return this; }
 		__inline__ Text* setFont(const char* name, const char* weight = "normal") { 
-			mFont = getRootNode()->getFontManager()->getFont(name, FontManager::getFontWeight(weight)); return this;
+			mFont = getRootNode()->getFontManager()->getFont(name, FontManager::getFontWeight(weight))->getFont(); return this;
 		}
 		__inline__ Text* setFont(const char* name, FontWeights weight = FONT_WEIGHT_NORMAL) { 
-			mFont = getRootNode()->getFontManager()->getFont(name, weight); return this;
+			mFont = getRootNode()->getFontManager()->getFont(name, weight)->getFont(); return this;
 		}
 
 		__inline__ Text* setPosition(DRVector2 pos) {

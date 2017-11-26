@@ -7,6 +7,7 @@
 #include "controller/GPUScheduler.h"
 #include "controller/CPUTask.h"
 #include "Font.h"
+#include "TextManager.h"
 
 namespace UniLib {
 	namespace view {
@@ -16,6 +17,7 @@ namespace UniLib {
 }
 
 class TextGeom;
+
 
 namespace HUD {
 
@@ -91,7 +93,11 @@ namespace HUD {
 	{
 	public:
 		ConfigJsonLoadTask(RootNode* caller, const char* fileName)
-			: CPUTask(gCPUScheduler), mCaller(caller), mConfigFileName(fileName) {}
+			: CPUTask(gCPUScheduler), mCaller(caller), mConfigFileName(fileName) {
+#ifdef _UNI_LIB_DEBUG
+			setName(fileName);
+#endif //_UNI_LIB_DEBUG
+		}
 
 		virtual DRReturn run() {
 			return mCaller->loadFromConfig(UniLib::readFileAsString(mConfigFileName));

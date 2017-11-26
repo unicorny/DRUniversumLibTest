@@ -86,7 +86,13 @@ DRReturn DRGrafikError(const char* pcErrorMessage)
 class AsycLoadTask : public controller::CPUTask
 {
 public:
-	AsycLoadTask(controller::CPUSheduler* sheduler) : CPUTask(sheduler) {}
+	AsycLoadTask(controller::CPUSheduler* sheduler) : CPUTask(sheduler) {
+#ifdef _UNI_LIB_DEBUG
+		setName("Load Game");
+#endif //_UNI_LIB_DEBUG
+}
+	virtual const char* getResourceType() const { return "AsycLoadTask"; };
+
 	DRReturn run() {
 		// init input controls
 		controller::InputControls* input = controller::InputControls::getInstance();
@@ -131,7 +137,7 @@ public:
 #endif //_WIN32
 
 		// World init
-		gWorld = new World();
+		gWorld = new World();		
 
 		// adding floor
 		model::geometrie::Plane* pl = new model::geometrie::Plane(model::geometrie::GEOMETRIE_VERTICES);
@@ -140,6 +146,8 @@ public:
 		view::VisibleNode* floor = new view::VisibleNode;
 
 		TextureMaterial* mat = new TextureMaterial;
+
+	
 		view::TexturePtr texture = textureManager->getEmptyTexture(DRVector2i(512, 512), GL_RGBA);
 		view::MaterialPtr materialPtr = view::MaterialPtr(mat);
 		mat->setShaderProgram(shaderManager->getShaderProgram("simple", "simple.vert", "simple.frag"));
@@ -172,6 +180,9 @@ public:
 		gInputCamera = new controller::InputCamera(80.0f, 1.0f, 45.0f);
 		gInputCamera->getPosition()->setPosition(DRVector3(-20.0f, -30.0f, -130.0f));
 		
+		if (g_v2WindowLength.x != 0 && g_v2WindowLength.y != 0) {
+			gInputCamera->setAspectRatio((float)g_v2WindowLength.x / (float)g_v2WindowLength.y);
+		}
 		gInputCamera->setFarClipping(1000.0f);
 
 		// HUD
@@ -249,7 +260,6 @@ DRReturn load()
 	//SDL_GetWindowWMInfo(g_pSDLWindow, handle);
 	UniLib::EngineLog.writeToLog("%d ms creating window", SDL_GetTicks() - ticks);
 	
-
 	if(!g_pSDLWindow)
 	{
 		EngineLog.writeToLog("Konnte Bildschirmmodus nicht setzen!: %s\n", SDL_GetError());
@@ -313,7 +323,9 @@ DRReturn load()
 
 	g_v2WindowLength.x = w;
 	g_v2WindowLength.y = h;
-	gInputCamera->setAspectRatio((float)g_v2WindowLength.x / (float)g_v2WindowLength.y);
+	if (gInputCamera) {
+		gInputCamera->setAspectRatio((float)g_v2WindowLength.x / (float)g_v2WindowLength.y);
+	}
 
 	EngineLog.writeToLog("time after creating renderer: %d ms", SDL_GetTicks());
 
@@ -360,6 +372,9 @@ DRReturn gameLoop()
 		char buffer[256]; memset(buffer, 0, 256);
 		sprintf(buffer, "FPS: %f", 1.0f/(float)gpuScheduler->getSecondsSinceLastFrame());
 		SDL_SetWindowTitle(g_pSDLWindow, buffer);
+		if (firstRun) {
+		//	gpuScheduler->runGPUTasks(GPU_TASK_LOAD);
+		}
 		if(gpuScheduler->updateEveryRendering()) {
 			LOG_ERROR("error in GPUScheduler", DR_ERROR);
 		}

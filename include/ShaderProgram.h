@@ -88,7 +88,11 @@ class ShaderProgramBinaryLoadTask : public UniLib::controller::CPUTask
 {
 public: 
 	ShaderProgramBinaryLoadTask(std::string filePath, ShaderProgram* parent)
-		: CPUTask(UniLib::g_HarddiskScheduler), mFilename(filePath), mParent(parent) {}
+		: CPUTask(UniLib::g_HarddiskScheduler), mFilename(filePath), mParent(parent) {
+#ifdef _UNI_LIB_DEBUG
+		setName(filePath.data());
+#endif //_UNI_LIB_DEBUG
+	}
 	virtual DRReturn run();
 	virtual const char* getResourceType() const { return "ShaderProgramBinaryLoadTask"; };
 protected:
@@ -100,7 +104,7 @@ class ShaderProgramBinaryCompileTask : public UniLib::controller::GPUTask
 {
 public:
 	ShaderProgramBinaryCompileTask(ShaderProgram* shader, ShaderProgramBinary* binary)
-		: GPUTask(true), mShaderProgram(shader), mShaderProgramBinary(binary) {
+		: GPUTask(UniLib::GPU_TASK_LOAD), mShaderProgram(shader), mShaderProgramBinary(binary) {
 #ifdef _UNI_LIB_DEBUG
 		setName(shader->getName());
 #endif

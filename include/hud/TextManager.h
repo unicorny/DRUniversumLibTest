@@ -11,13 +11,15 @@
  */
 #include "lib/MultithreadMap.h"
 #include "lib/MultithreadQueue.h"
+#include "TextToRender.h"
 
-class TextToRender;
+class Font;
 
 class TextManager
 {
 public:
-	TextManager() {};
+	TextManager(Font* font) :mFont(font) {}
+	~TextManager();
 	__inline__ static DHASH hashFromName(const char* name) { return DRMakeStringHash(name); }
 	DHASH addTextAbs(const char* name, const char* string, DRVector2 sizeInPx, DRVector3 posInPx, bool cashed = true);
 	DHASH addTextRel(const char* name, const char* string, DRVector2 sizeInPercent, DRVector3 posInPercent, bool cashed = true);
@@ -27,13 +29,15 @@ public:
 		mTextEntrys.s_add(id, text, NULL);
 		return id;
 	}
+
+	__inline__ Font* getFont() { return mFont; }
 protected:
 
 	typedef UniLib::lib::MultithreadMap<DHASH, TextToRender*> TextMap;
 	typedef UniLib::lib::MultithreadQueue<DHASH> HashQueue;
 	TextMap		mTextEntrys;
 	HashQueue   mDeleteBuffer;
-
+	Font*		mFont;
 };
 
 #endif __DR_TEXT_MANAGER_H
