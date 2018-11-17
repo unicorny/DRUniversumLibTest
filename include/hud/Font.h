@@ -80,6 +80,7 @@ public:
 
 	__inline__ const Glyph* getGlyph(u32 c) { return mGlyphenMap[c]; }
 	__inline__ const char* getName() { return mFontName.data(); }
+	__inline__ FontManager* getParent() { return mParent; }
 	std::string getBinFileName();
 
 	DRVector2i calculateTextSize(const char* string);

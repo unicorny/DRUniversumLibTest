@@ -9,6 +9,7 @@ using namespace UniLib;
 
 Glyph::~Glyph()
 {
+
 	
 }
 

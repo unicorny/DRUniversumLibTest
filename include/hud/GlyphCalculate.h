@@ -58,6 +58,7 @@ public:
 	~GlyphCalculate();
 
 	DRReturn loadGlyphInfos(FT_ULong c, FT_Face face);
+	__inline__ FT_Glyph_Metrics getMetrics() { return mGlyphMetrics; }
 	DRReturn loadGlyph(s32 splitDeepParam);
 	__inline__ u32& operator[](u32 index) { assert(mBezierIndices && index < mBezierKurves.size()); return mBezierIndices[index]; }
 	void addPointToBezier(DRVector2i p, int conturIndex, bool onCurve = true);

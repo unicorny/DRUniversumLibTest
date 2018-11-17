@@ -81,6 +81,18 @@ DRReturn DRGrafikError(const char* pcErrorMessage)
 	}
 	return DR_OK;
 }
+
+class TextEnterCommand : public controller::Command
+{
+public:
+	virtual DRReturn taskFinished(controller::Task* task) {
+		auto defaultFont = g_HUDRootNode->getFontManager()->getDefaultFont();
+		defaultFont->addTextAbs("HalloWelt", "Hallo Welt", 14.0f, DRVector3(0.0f));
+		defaultFont->update();
+
+		return DR_OK;
+	}
+};
 //******************************************************************************************************
 
 class AsycLoadTask : public controller::CPUTask
@@ -188,7 +200,10 @@ public:
 		// HUD
 		g_HUDRootNode = new HUD::RootNode();
 		UniLib::controller::LoadingTimeCommand* cmd = new UniLib::controller::LoadingTimeCommand("Font Loading Time: ", SDL_GetTicks());
-		g_HUDRootNode->init(g_v2WindowLength, "data/material/hud.json", cmd);
+		UniLib::controller::MultiCommands* multiCmd = new controller::MultiCommands(2);
+		multiCmd->addCommand(cmd);
+		multiCmd->addCommand(new TextEnterCommand);
+		g_HUDRootNode->init(g_v2WindowLength, "data/material/hud.json", multiCmd);
 		//HUD::ContainerNode* debugStatsContainer = new HUD::ContainerNode("debugStats", g_HUDRootNode);
 		//HUD::Text* testText = new HUD::Text("test", debugStatsContainer, "Test");
 		//testText->setPosition(DRVector2(0.0f));

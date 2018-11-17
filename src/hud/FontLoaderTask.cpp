@@ -103,7 +103,10 @@ DRReturn FontLoaderTask::run()
 			cleanUp(font, freeTypeLibrayHandle);
 			LOG_ERROR("error by loading glyph infos", DR_ERROR);
 		}
-		if (binaryExistAndValid) continue;
+		if (binaryExistAndValid) {
+			mParent->mGlyphenMap[glyphMap[iGlyphIndex]]->setGlyphMetrics(calculator[iGlyphIndex].getMetrics());
+			continue;
+		}
 		// read glyph points
 		if (calculator[iGlyphIndex].loadGlyph(mSplitDeep)) {
 			cleanUp(font, freeTypeLibrayHandle);
@@ -125,6 +128,7 @@ DRReturn FontLoaderTask::run()
 	// exit if binary was valid
 	if (binaryExistAndValid) {
 		finish();
+		DR_SAVE_DELETE_ARRAY(calculator);
 		return DR_OK;
 	}
 
