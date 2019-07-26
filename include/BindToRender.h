@@ -21,7 +21,7 @@ public:
 	virtual UniLib::view::BlockSektor* newBlockSektor() { return new BlockSektorRenderer(); }
 	virtual UniLib::view::Texture* newTexture(DRVector2i size, GLenum format) { return new Texture(size, format); }
 	virtual UniLib::view::Texture* newTexture(DHASH id, const char* fileName) { return new Texture(id, fileName); }
-	virtual UniLib::view::Geometrie* newGeometrie(UniLib::model::geometrie::BaseGeometrie* baseGeometrie) { return new Geometrie(baseGeometrie); }
+	virtual UniLib::view::Geometrie* newGeometrie(UniLib::model::geometrie::BaseGeometriePtr baseGeometrie) { return new Geometrie(baseGeometrie); }
 	virtual UniLib::view::FrameBuffer* newFrameBuffer(UniLib::view::TexturePtr texture) { return new FrameBuffer(texture); }
 	virtual UniLib::view::FrameBuffer* newFrameBuffer() { return new FrameBuffer; }
 

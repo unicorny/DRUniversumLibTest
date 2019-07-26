@@ -6,7 +6,7 @@
 using namespace UniLib;
 using namespace model;
 
-Geometrie::Geometrie(model::geometrie::BaseGeometrie* geometrieModel)
+Geometrie::Geometrie(model::geometrie::BaseGeometriePtr geometrieModel)
 	: view::Geometrie(geometrieModel), mVAO(0), mRenderMode(GL_TRIANGLE_STRIP), mUsage(GL_STATIC_DRAW), mIndexCount(0)
 {
 
@@ -73,7 +73,7 @@ DRReturn Geometrie::uploadToGPU()
 
 	// deactivate buffer
 	
-	DR_SAVE_DELETE(mGeometrieModel);
+	//DR_SAVE_DELETE(mGeometrieModel);
 	//glBindVertexArray(0);
 	//EngineLog.writeToLog("[Geometrie::uploadToGPU] sum: %d ms", SDL_GetTicks() - startTicks);
 	if (DRGrafikError("error by uploading geometrie to GPU")) {

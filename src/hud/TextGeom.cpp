@@ -16,7 +16,7 @@
 using namespace UniLib;
 
 TextGeom::TextGeom()
-	: mGeometrieReady(false), mGeometrie(NULL), mBaseGeo(NULL)
+	: mGeometrieReady(false), mGeometrie(NULL)
 {
 
 }
@@ -40,13 +40,11 @@ DRReturn TextGeom::init(bool compare /*= false*/)
 		materialPtr->setUniformSet(uniform);
 		mGeometrie->setMaterial(materialPtr);
 
-		mBaseGeo = new model::geometrie::BaseGeometrie;
+		mBaseGeo = model::geometrie::BaseGeometriePtr(new model::geometrie::BaseGeometrie);
 		mBaseGeo->setRenderMode(UniLib::model::geometrie::GEOMETRIE_RENDER_POINTS);
 		//		mBaseGeo = new model::geometrie::Plane(model::geometrie::GEOMETRIE_VERTICES);
-		Geometrie* geo = new Geometrie(mBaseGeo);
-		
 		//geo->setRenderMode(GL_LINE_STRIP);
-		view::GeometriePtr ptr(geo);
+		view::GeometriePtr ptr(new Geometrie(mBaseGeo));
 		mGeometrie->setGeometrie(ptr);
 		model::Position* pos = mGeometrie->getPosition();
 		//pos->setScale(DRVector3(75.0f, 100.0f, 100.0f));

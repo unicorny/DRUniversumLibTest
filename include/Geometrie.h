@@ -13,7 +13,7 @@ DRReturn DRGrafikError(const char* pcErrorMessage);
 class Geometrie : public UniLib::view::Geometrie, public UniLib::lib::MultithreadContainer
 {
 public:
-	Geometrie(UniLib::model::geometrie::BaseGeometrie* geometrieModel);
+	Geometrie(UniLib::model::geometrie::BaseGeometriePtr geometrieModel);
 	virtual ~Geometrie();
 
 	virtual DRReturn uploadToGPU();

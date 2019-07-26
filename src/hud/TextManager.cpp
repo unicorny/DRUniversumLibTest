@@ -46,6 +46,8 @@ mWriteGlyphBufferMaterial(UniLib::g_RenderBinder->newTextureMaterial()), mUseGly
 	UniLib::controller::ShaderManager* shaderM = UniLib::controller::ShaderManager::getInstance();
 	mWriteGlyphBufferMaterial->setShaderProgram(shaderM->getShaderProgram("renderFont", "renderFont.vert", "renderFont.frag"));
 	mWriteGlyphBufferMaterial->setUniformSet(font->getUniformSet());
+
+	mGlyphGeometrie = UniLib::model::geometrie::BaseGeometriePtr(new UniLib::model::geometrie::Rect2DCollection);
 	//mWriteGlyphBufferMaterial->setShaderProgram()
 }
 
@@ -204,22 +206,25 @@ DRReturn TextManager::_update()
 	}
 
 	DRVector2i packedDimension;
-	mGlyphGeometrie.deleteFastAccessStructures();
-	if (mGlyphGeometrie.generateVertices(inputSize)) {
+	mGlyphGeometrie->deleteFastAccessStructures();
+	auto glyphCollection = dynamic_cast<UniLib::model::geometrie::Rect2DCollection*>(mGlyphGeometrie.getResourcePtrHolder()->mResource);
+	if (glyphCollection->generateVertices(inputSize)) {
 		DR_SAVE_DELETE_ARRAY(inputSize);
 		DR_SAVE_DELETE_ARRAY(glyphSizes);
 		LOG_ERROR("error generating vertives", DR_ERROR);
 	}
 
-	packedDimension = mGlyphGeometrie.getCollectionDimension();
+	packedDimension = glyphCollection->getCollectionDimension();
 	updateMaterialTextureSize(mWriteGlyphBufferMaterial, packedDimension);
 	
 	//updateMaterialTextureSize(mUseGlyphBufferMaterial, packedDimension);
 
-	auto geo = new Geometrie(&mGlyphGeometrie);
+	auto geo = new Geometrie(mGlyphGeometrie);
 	auto textureMaterial = dynamic_cast<TextureMaterial*>((UniLib::view::Material*)mWriteGlyphBufferMaterial);
 
 	UniLib::controller::TaskPtr geometrieUploadTask(new UniLib::view::GeometrieUploadToGpuTask(geo));
+	geometrieUploadTask->setName("font glyph geom");
+	geometrieUploadTask->scheduleTask(geometrieUploadTask);
 	UniLib::controller::TaskPtr task(new TextManagerRenderTask(this, textureMaterial, geo, packedDimension));
 
 	task->scheduleTask(task);

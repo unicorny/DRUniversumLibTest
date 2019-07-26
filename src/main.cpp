@@ -152,9 +152,10 @@ public:
 		gWorld = new World();		
 
 		// adding floor
-		model::geometrie::Plane* pl = new model::geometrie::Plane(model::geometrie::GEOMETRIE_VERTICES);
-		Geometrie* geo = new Geometrie(pl);
-		view::GeometriePtr ptr(geo);
+		model::geometrie::BaseGeometriePtr plGeo(new model::geometrie::Plane(model::geometrie::GEOMETRIE_VERTICES));
+		//model::geometrie::Plane* pl = new model::geometrie::Plane(model::geometrie::GEOMETRIE_VERTICES);
+		//Geometrie* geo = new Geometrie(plGeo);
+		view::GeometriePtr ptr(new Geometrie(plGeo));
 		view::VisibleNode* floor = new view::VisibleNode;
 
 		TextureMaterial* mat = new TextureMaterial;

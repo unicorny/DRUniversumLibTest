@@ -18,6 +18,7 @@ namespace UniLib {
 	namespace model {
 		namespace geometrie {
 			class BaseGeometrie;
+			typedef DRResourcePtr<BaseGeometrie> BaseGeometriePtr;
 		}
 	}
 }
@@ -41,7 +42,7 @@ protected:
 	bool mGeometrieReady;
 	UniLib::view::TexturePtr mTexture;
 	UniLib::view::VisibleNode* mGeometrie;
-	UniLib::model::geometrie::BaseGeometrie* mBaseGeo;
+	UniLib::model::geometrie::BaseGeometriePtr mBaseGeo;
 	UniLib::lib::MultithreadContainer mGeoReadyMutex;
 	
 };

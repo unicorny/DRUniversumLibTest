@@ -35,12 +35,12 @@ struct GlyphPackObj
 	static int compareWidth(const void* _a, const void* _b) {
 		auto a = (GlyphPackObj*)_a;
 		auto b = (GlyphPackObj*)_b;
-		return a->glyphOuterSize.x - b->glyphOuterSize.x;
+		return (int)round(a->glyphOuterSize.x - b->glyphOuterSize.x);
 	}
 	static int compareHeight(const void* _a, const void* _b) {
 		auto a = (GlyphPackObj*)_a;
 		auto b = (GlyphPackObj*)_b;
-		return a->glyphOuterSize.y - b->glyphOuterSize.y;
+		return (int)round(a->glyphOuterSize.y - b->glyphOuterSize.y);
 	}
 
 	static int comparePathological(const void* _a, const void* _b) {
@@ -54,7 +54,7 @@ struct GlyphPackObj
 		if (b->glyphOuterSize.x > b->glyphOuterSize.y) { resB = b->glyphOuterSize.x / b->glyphOuterSize.y * b->glyphOuterSize.x * b->glyphOuterSize.y;}
 		else { resB = b->glyphOuterSize.y / b->glyphOuterSize.x * b->glyphOuterSize.x * b->glyphOuterSize.y;}
 
-		return resA - resB;
+		return (int)round(resA - resB);
 
 	}
 
@@ -65,13 +65,13 @@ struct GlyphPackObj
 		auto bMax = b->glyphOuterSize.y;
 		if (aMax < a->glyphOuterSize.y) { aMax = a->glyphOuterSize.y; }
 		if (bMax < b->glyphOuterSize.y) { bMax = b->glyphOuterSize.y; }
-		return aMax - bMax;
+		return (int)round(aMax - bMax);
 	}
 
 	static int compareArea(const void* _a, const void* _b) {
 		auto a = (GlyphPackObj*)_a;
 		auto b = (GlyphPackObj*)_b;
-		return a->glyphOuterSize.x * a->glyphOuterSize.y - b->glyphOuterSize.x * b->glyphOuterSize.y;
+		return (int)round(a->glyphOuterSize.x * a->glyphOuterSize.y - b->glyphOuterSize.x * b->glyphOuterSize.y);
 	}
 };
 
@@ -125,7 +125,7 @@ protected:
 
 	// view
 	UniLib::view::MaterialPtr mWriteGlyphBufferMaterial;
-	UniLib::model::geometrie::Rect2DCollection mGlyphGeometrie;
+	UniLib::model::geometrie::BaseGeometriePtr mGlyphGeometrie;
 	UniLib::view::MaterialPtr mUseGlyphBufferMaterial;
 
 };
@@ -148,7 +148,7 @@ public:
 	TextManagerRenderTask(TextManager* parent, UniLib::view::TextureMaterial* textureMaterial, Geometrie* geometrie, DRVector2i textureDimension)
 		: UniLib::controller::GPUTask(UniLib::GPU_TASK_SLOW), 
 		mParent(parent), mTextureMaterial(textureMaterial), mGeometrie(geometrie), mTextureDimensions(textureDimension) {};
-	~TextManagerRenderTask() { DR_SAVE_DELETE(mGeometrie);}
+	~TextManagerRenderTask() { DR_SAVE_DELETE(mGeometrie); }
 
 	virtual const char* getResourceType() const { return "TextManagerRenderTask"; };
 	virtual bool isReady();
