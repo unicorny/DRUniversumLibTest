@@ -1,14 +1,16 @@
 #include "hud/Font.h"
 #include "hud/FontManager.h"
-
+#include "controller/BindToRenderer.h"
 
 using namespace UniLib;
 
 Font::Font(FontManager* fm, const char* fontName)
-	: mParent(fm), mFontName(fontName), 
+	: mParent(fm), mFontName(fontName), mFontRenderUniformSet(UniLib::g_RenderBinder->newUniformSet()),
 	mIndexBuffer(NULL), mPointBuffer(NULL), mBezierCurveBuffer(NULL)
 {
 	mLoadingState = LOADING_STATE_HAS_INFORMATIONS;
+	// hardcoded
+	//mFontRenderUniformSet->setUniform("view", DRMatrix::identity());
 }
 
 Font::~Font()
@@ -20,6 +22,7 @@ Font::~Font()
 	DR_SAVE_DELETE(mIndexBuffer);
 	DR_SAVE_DELETE(mPointBuffer);
 	DR_SAVE_DELETE(mBezierCurveBuffer);
+	DR_SAVE_DELETE(mFontRenderUniformSet);
 }
 
 std::string Font::getBinFileName()

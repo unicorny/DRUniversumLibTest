@@ -87,7 +87,7 @@ class TextEnterCommand : public controller::Command
 public:
 	virtual DRReturn taskFinished(controller::Task* task) {
 		auto defaultFont = g_HUDRootNode->getFontManager()->getDefaultFont();
-		defaultFont->addTextAbs("HalloWelt", "Hallo Welt", 14.0f, DRVector3(0.0f));
+		defaultFont->addTextAbs("HalloWelt", "abcdefghijklmnopyrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ1234567890??!", 14.0f, DRVector3(0.0f));
 		defaultFont->update();
 
 		return DR_OK;
@@ -175,7 +175,7 @@ public:
 #ifdef _UNI_LIB_DEBUG
 		testTask->setName("renderTest");
 #endif
-		Material* renderMaterial = new Material;
+		view::MaterialPtr renderMaterial(new Material);
 		renderMaterial->setShaderProgram(shaderManager->getShaderProgram("frameBufer", "frameBuffer.vert", "speedTest.frag"));
 		testTask->setMaterial(renderMaterial);
 		controller::TaskPtr renderTestTask(testTask);

@@ -89,6 +89,8 @@ public:
 	// for debug rendering the points as vertices
 	std::queue<DRVector3> getVerticesForGlyph(u32 c);
 
+	__inline__ UniLib::model::UniformSet* getUniformSet() { return mFontRenderUniformSet; }
+
 protected:
 	void loadingFinished();
 	FontManager* mParent;
@@ -100,6 +102,8 @@ protected:
 	DataBuffer* mIndexBuffer;
 	DataBuffer* mPointBuffer;
 	DataBuffer* mBezierCurveBuffer;
+
+	UniLib::model::UniformSet* mFontRenderUniformSet;
 
 	
 };

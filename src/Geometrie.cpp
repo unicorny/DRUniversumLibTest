@@ -20,6 +20,7 @@ Geometrie::~Geometrie()
 
 DRReturn Geometrie::uploadToGPU()
 {
+	
 	Uint32 startTicks = SDL_GetTicks();
 	geometrie::BaseGeometrie* g = mGeometrieModel;
 	// create buffer
@@ -28,6 +29,8 @@ DRReturn Geometrie::uploadToGPU()
 	int vertexCount = g->getVertexCount();
 	int vertexSize = g->getVertexSize();
 	mIndexCount = g->getIndexCount();
+	mRenderMode = getOpenGLRenderMode(g->getRenderMode());
+
 
 	// fill buffer
 	glBindBuffer( GL_ARRAY_BUFFER, mGLBufferIDs[0]); 
@@ -73,7 +76,15 @@ DRReturn Geometrie::uploadToGPU()
 	DR_SAVE_DELETE(mGeometrieModel);
 	//glBindVertexArray(0);
 	//EngineLog.writeToLog("[Geometrie::uploadToGPU] sum: %d ms", SDL_GetTicks() - startTicks);
-	if (DRGrafikError("error by uploading geometrie to GPU")) LOG_ERROR("error in geometrie", DR_ERROR);
+	if (DRGrafikError("error by uploading geometrie to GPU")) {
+		unlock();
+		LOG_ERROR("error in geometrie", DR_ERROR);
+	}
+
+	lock();
+	mLoadingState = UniLib::LOADING_STATE_FULLY_LOADED;
+	unlock();
+	
 	return DR_OK;
 }
 
@@ -100,3 +111,19 @@ DRReturn Geometrie::render()
 	return DR_OK;
 }
 
+GLenum Geometrie::getOpenGLRenderMode(UniLib::model::geometrie::GeometrieRenderMode renderMode)
+{
+	using namespace UniLib::model::geometrie;
+
+	switch (renderMode) {
+	case GEOMETRIE_RENDER_TRIANGLES: return GL_TRIANGLES;
+	case GEOMETRIE_RENDER_TRIANGLE_STRIP: return GL_TRIANGLE_STRIP;
+	case GEOMETRIE_RENDER_TRIANGLE_FAN: return GL_TRIANGLE_FAN;
+	case GEOMETRIE_RENDER_LINES: return GL_LINES;
+	case GEOMETRIE_RENDER_LINE_STRIP: return GL_LINE_STRIP;
+	case GEOMETRIE_RENDER_LINE_LOOP: return GL_LINE_LOOP;
+	case GEOMETRIE_RENDER_POINTS: return GL_POINTS;
+	default: return 0;
+	}
+	return 0;
+}

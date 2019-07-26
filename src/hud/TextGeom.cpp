@@ -41,10 +41,11 @@ DRReturn TextGeom::init(bool compare /*= false*/)
 		mGeometrie->setMaterial(materialPtr);
 
 		mBaseGeo = new model::geometrie::BaseGeometrie;
+		mBaseGeo->setRenderMode(UniLib::model::geometrie::GEOMETRIE_RENDER_POINTS);
 		//		mBaseGeo = new model::geometrie::Plane(model::geometrie::GEOMETRIE_VERTICES);
 		Geometrie* geo = new Geometrie(mBaseGeo);
+		
 		//geo->setRenderMode(GL_LINE_STRIP);
-		geo->setRenderMode(GL_POINTS);
 		view::GeometriePtr ptr(geo);
 		mGeometrie->setGeometrie(ptr);
 		model::Position* pos = mGeometrie->getPosition();

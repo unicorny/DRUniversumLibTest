@@ -9,11 +9,16 @@
  *
  * \desc: 
  */
+
 #include "lib/MultithreadMap.h"
 #include "lib/MultithreadQueue.h"
 #include "controller/CPUTask.h"
 #include "controller/GPUTask.h"
+#include "model/geometrie/Rect2DCollection.h"
+#include "view/TextureMaterial.h"
 #include "TextToRender.h"
+#include "Geometrie.h"
+
 
 class Font;
 class TextManagerUpdateTask;
@@ -37,6 +42,37 @@ struct GlyphPackObj
 		auto b = (GlyphPackObj*)_b;
 		return a->glyphOuterSize.y - b->glyphOuterSize.y;
 	}
+
+	static int comparePathological(const void* _a, const void* _b) {
+		auto a = (GlyphPackObj*)_a;
+		auto b = (GlyphPackObj*)_b;
+		//max(w, h) / min(w, h) * w * h
+		float resA, resB;
+		if (a->glyphOuterSize.x > a->glyphOuterSize.y) { resA = a->glyphOuterSize.x / a->glyphOuterSize.y * a->glyphOuterSize.x * a->glyphOuterSize.y;}
+		else { resA = a->glyphOuterSize.y / a->glyphOuterSize.x * a->glyphOuterSize.x * a->glyphOuterSize.y;}
+
+		if (b->glyphOuterSize.x > b->glyphOuterSize.y) { resB = b->glyphOuterSize.x / b->glyphOuterSize.y * b->glyphOuterSize.x * b->glyphOuterSize.y;}
+		else { resB = b->glyphOuterSize.y / b->glyphOuterSize.x * b->glyphOuterSize.x * b->glyphOuterSize.y;}
+
+		return resA - resB;
+
+	}
+
+	static int compareBiggerSide(const void* _a, const void* _b) {
+		auto a = (GlyphPackObj*)_a;
+		auto b = (GlyphPackObj*)_b;
+		auto aMax = a->glyphOuterSize.x;
+		auto bMax = b->glyphOuterSize.y;
+		if (aMax < a->glyphOuterSize.y) { aMax = a->glyphOuterSize.y; }
+		if (bMax < b->glyphOuterSize.y) { bMax = b->glyphOuterSize.y; }
+		return aMax - bMax;
+	}
+
+	static int compareArea(const void* _a, const void* _b) {
+		auto a = (GlyphPackObj*)_a;
+		auto b = (GlyphPackObj*)_b;
+		return a->glyphOuterSize.x * a->glyphOuterSize.y - b->glyphOuterSize.x * b->glyphOuterSize.y;
+	}
 };
 
 class TextManager: public UniLib::lib::MultithreadContainer
@@ -44,7 +80,7 @@ class TextManager: public UniLib::lib::MultithreadContainer
 	friend TextManagerUpdateTask;
 	friend TextManagerRenderTask;
 public:
-	TextManager(Font* font) :mFont(font), mDirty(true), mUpdateInProgress(false) { }
+	TextManager(Font* font);
 	~TextManager();
 	__inline__ static DHASH hashFromName(const char* name) { return DRMakeStringHash(name); }
 	DHASH addTextAbs(const char* name, const char* string, float fontSizePx, DRVector3 posInPx, bool cashed = true);
@@ -61,6 +97,8 @@ public:
 	}
 
 	DRReturn update();
+	bool isGlyphBufferMaterialReady();
+	bool isGlyphMaterialFilled();
 
 	__inline__ Font* getFont() { return mFont; }
 	static DHASH makeHashFromCharWithSize(u16 charcode, u16 fontSize);
@@ -68,7 +106,12 @@ public:
 protected:
 
 	DRReturn _update();
+	
 	DRReturn _render(GlyphPackObj* glyphsPacked, DRVector2i textureDimension);
+
+	void renderFinished();
+
+	DRReturn updateMaterialTextureSize(UniLib::view::MaterialPtr material, DRVector2i textureDimension);
 
 	typedef UniLib::lib::MultithreadMap<DHASH,TextToRender*> TextMap;
 	typedef UniLib::lib::MultithreadQueue<DHASH> HashQueue;
@@ -81,7 +124,9 @@ protected:
 	bool		mUpdateInProgress;
 
 	// view
-	//UniLib::view::MaterialPtr 
+	UniLib::view::MaterialPtr mWriteGlyphBufferMaterial;
+	UniLib::model::geometrie::Rect2DCollection mGlyphGeometrie;
+	UniLib::view::MaterialPtr mUseGlyphBufferMaterial;
 
 };
 
@@ -100,15 +145,19 @@ protected:
 class TextManagerRenderTask : public UniLib::controller::GPUTask
 {
 public: 
-	TextManagerRenderTask(TextManager* parent, GlyphPackObj* glyphsPacked, DRVector2i textureDimension)
+	TextManagerRenderTask(TextManager* parent, UniLib::view::TextureMaterial* textureMaterial, Geometrie* geometrie, DRVector2i textureDimension)
 		: UniLib::controller::GPUTask(UniLib::GPU_TASK_SLOW), 
-		mParent(parent), mGlyphsPacked(glyphsPacked), mTextureDimensions(textureDimension) {};
+		mParent(parent), mTextureMaterial(textureMaterial), mGeometrie(geometrie), mTextureDimensions(textureDimension) {};
+	~TextManagerRenderTask() { DR_SAVE_DELETE(mGeometrie);}
+
 	virtual const char* getResourceType() const { return "TextManagerRenderTask"; };
-	virtual DRReturn run() { return mParent->_render(mGlyphsPacked, mTextureDimensions); }
+	virtual bool isReady();
+	virtual DRReturn run();
 
 protected:
 	TextManager* mParent;
-	GlyphPackObj* mGlyphsPacked;
+	UniLib::view::TextureMaterial* mTextureMaterial;
+	Geometrie*   mGeometrie;
 	DRVector2i    mTextureDimensions;
 };
 
