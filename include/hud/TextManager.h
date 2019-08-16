@@ -14,6 +14,7 @@
 #include "lib/MultithreadQueue.h"
 #include "controller/CPUTask.h"
 #include "controller/GPUTask.h"
+#include "controller/GPUScheduler.h"
 #include "model/geometrie/Rect2DCollection.h"
 #include "view/TextureMaterial.h"
 #include "TextToRender.h"
@@ -75,6 +76,8 @@ struct GlyphPackObj
 	}
 };
 
+class TextRenderCall;
+
 class TextManager: public UniLib::lib::MultithreadContainer
 {
 	friend TextManagerUpdateTask;
@@ -100,9 +103,14 @@ public:
 	bool isGlyphBufferMaterialReady();
 	bool isGlyphMaterialFilled();
 
+	void enableTextRenderCall(UniLib::controller::GPUScheduler* gpuScheduler);
+	//! \param gpuScheduler if not nil, call remove render call on gpu scheduler
+	void disableTextRenderCall(UniLib::controller::GPUScheduler* gpuScheduler = nullptr);
+
 	__inline__ Font* getFont() { return mFont; }
 	static DHASH makeHashFromCharWithSize(u16 charcode, u16 fontSize);
 	static void makeCharWithSizeFromHash(DHASH hash, u16 &charcode, u16 &fontSize);
+
 protected:
 
 	DRReturn _update();
@@ -123,11 +131,32 @@ protected:
 	bool		mDirty;
 	bool		mUpdateInProgress;
 
+	TextRenderCall* mRenderCall;
+
 	// view
 	UniLib::view::MaterialPtr mWriteGlyphBufferMaterial;
 	UniLib::model::geometrie::BaseGeometriePtr mGlyphGeometrie;
 	UniLib::view::MaterialPtr mUseGlyphBufferMaterial;
 
+};
+
+
+
+class TextRenderCall : public UniLib::controller::GPURenderCall 
+{
+public:
+	TextRenderCall(TextManager* parent);
+	virtual ~TextRenderCall();
+
+	virtual DRReturn render(float timeSinceLastFrame);
+	// if render return not DR_OK, Call will be removed from List and kicked will be called
+	virtual void kicked();
+	// will be called if render call need to much time
+	// \param percent used up percent time of render main loop
+	virtual void youNeedToLong(float percent);
+
+protected:
+	TextManager* mParent;
 };
 
 class TextManagerUpdateTask : public UniLib::controller::CPUTask

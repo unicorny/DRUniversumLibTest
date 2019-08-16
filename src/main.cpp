@@ -156,10 +156,9 @@ public:
 		//model::geometrie::Plane* pl = new model::geometrie::Plane(model::geometrie::GEOMETRIE_VERTICES);
 		//Geometrie* geo = new Geometrie(plGeo);
 		view::GeometriePtr ptr(new Geometrie(plGeo));
-		view::VisibleNode* floor = new view::VisibleNode;
+		view::VisibleNode* floor = new view::VisibleNode;		
 
 		TextureMaterial* mat = new TextureMaterial;
-
 	
 		view::TexturePtr texture = textureManager->getEmptyTexture(DRVector2i(512, 512), GL_RGBA);
 		view::MaterialPtr materialPtr = view::MaterialPtr(mat);

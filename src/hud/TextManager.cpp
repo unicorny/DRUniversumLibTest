@@ -41,6 +41,7 @@ DRReturn TextManagerRenderTask::run()
 // **********************************************************************************************************************************************
 
 TextManager::TextManager(Font* font) : mFont(font), mDirty(true), mUpdateInProgress(false),
+mRenderCall(nullptr),
 mWriteGlyphBufferMaterial(UniLib::g_RenderBinder->newTextureMaterial()), mUseGlyphBufferMaterial(UniLib::g_RenderBinder->newTextureMaterial())
 {
 	UniLib::controller::ShaderManager* shaderM = UniLib::controller::ShaderManager::getInstance();
@@ -358,4 +359,54 @@ DRReturn TextManager::_render(GlyphPackObj* glyphsPacked, DRVector2i textureDime
 	mUpdateInProgress = false;
 	unlock();
 	return DR_OK;
+}
+
+void TextManager::enableTextRenderCall(UniLib::controller::GPUScheduler* gpuScheduler)
+{
+	if (!mRenderCall) {
+		mRenderCall = new TextRenderCall(this);
+		gpuScheduler->registerGPURenderCommand(mRenderCall, UniLib::controller::GPU_SCHEDULER_COMMAND_AFTER_RENDERING);
+	}
+}
+
+void TextManager::disableTextRenderCall(UniLib::controller::GPUScheduler* gpuScheduler/* = nullptr*/)
+{
+	if (mRenderCall) {
+		if (gpuScheduler) {
+			gpuScheduler->unregisterGPURenderCommand(mRenderCall, UniLib::controller::GPU_SCHEDULER_COMMAND_AFTER_RENDERING);
+		}
+		delete mRenderCall;
+	}
+}
+
+// ***************************************************************************************************
+// Text Render Call
+// ***************************************************************************************************
+
+TextRenderCall::TextRenderCall(TextManager* parent)
+	: mParent(parent)
+{
+
+}
+
+TextRenderCall::~TextRenderCall()
+{
+
+}
+
+
+DRReturn TextRenderCall::render(float timeSinceLastFrame)
+{
+	return DR_OK;
+}
+// if render return not DR_OK, Call will be removed from List and kicked will be called
+void TextRenderCall::kicked()
+{
+	mParent->disableTextRenderCall(nullptr);
+}
+// will be called if render call need to much time
+// \param percent used up percent time of render main loop
+void TextRenderCall::youNeedToLong(float percent)
+{
+	UniLib::EngineLog.writeToLog("slow text renderer");
 }
