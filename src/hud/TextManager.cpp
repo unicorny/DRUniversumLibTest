@@ -85,6 +85,45 @@ DHASH TextManager::addTextRel(const char* name, const char* string, float fontSi
 	return addText(name, text);
 }
 
+DHASH TextManager::addText(const char* name, TextToRender* text)
+{
+	DHASH id = hashFromName(name);
+	if (mTextEntrys.s_add(id, text, NULL)) {
+		return 0;
+	}
+	else {
+		goingDirty(); 
+	}
+	return id;
+}
+
+void TextManager::goingDirty()
+{
+	lock();
+	if (!mDirty) {
+		// call commands
+		for (auto it = mObserverDirty.begin(); it != mObserverDirty.end(); it++) {
+			(*it)->goingDirty();
+		}
+	}
+	mDirty = true;
+	unlock();
+}
+
+void TextManager::registerObserverGoingDirty(UniLib::controller::DirtyCommand* command)
+{
+	lock();
+	mObserverDirty.push_back(command);
+	unlock();
+}
+
+void TextManager::unregisterObserverGoingDirty(UniLib::controller::DirtyCommand* command)
+{
+	lock();
+	mObserverDirty.remove(command);
+	unlock();
+}
+
 DRReturn TextManager::update()
 {
 	lock();
@@ -397,6 +436,8 @@ TextRenderCall::~TextRenderCall()
 
 DRReturn TextRenderCall::render(float timeSinceLastFrame)
 {
+	// collect fonts with text, up to 4 fonts at the same time using multi texture
+	// 
 	return DR_OK;
 }
 // if render return not DR_OK, Call will be removed from List and kicked will be called

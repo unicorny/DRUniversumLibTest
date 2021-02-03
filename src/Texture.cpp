@@ -13,6 +13,14 @@ DRReturn TexturePushToGPUTask::run()
 	if (mFinishCommand) mFinishCommand->taskFinished(this); 
 	return result;
 }
+
+// **********************************************************************************
+
+DRReturn TextureRetrieveFromGPUTask::run()
+{
+	//
+	return DR_OK;
+}
 // **********************************************************************************
 
 
@@ -54,9 +62,11 @@ void Texture::uploadToGPU()
 	controller::TaskPtr task(t);
 	task->scheduleTask(task);
 }
+
 void Texture::downloadFromGPU()
 {
 }
+
 void Texture::bind()
 {
 	glBindTexture(GL_TEXTURE_2D, mTextureID);
@@ -98,7 +108,13 @@ DRReturn Texture::_uploadToGPU()
 	}
 	setLoadingState(LOADING_STATE_FULLY_LOADED);
 	mTextureModel->unlock();
-	return DRGrafikError("[view::Texture::_uploadToGPU] Error by copying pixels to OpenGL");
+	return DRGrafikError("[view::Texture::_uploadToGPU] Error by copying pixels to GPU with OpenGL");
+}
+
+DRReturn Texture::_downloadFromGPU()
+{
+
+	return DRGrafikError("[view::Texture::_downloadFromGPU] Error by copying pixels from GPU with OpenGL");
 }
 
 DRReturn Texture::createTextureMemory(DRVector2i size, GLenum format, GLint internalFormat)

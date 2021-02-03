@@ -15,10 +15,12 @@
 #include "controller/CPUTask.h"
 #include "controller/GPUTask.h"
 #include "controller/GPUScheduler.h"
+#include "controller/Command.h"
 #include "model/geometrie/Rect2DCollection.h"
 #include "view/TextureMaterial.h"
 #include "TextToRender.h"
 #include "Geometrie.h"
+
 
 
 class Font;
@@ -89,19 +91,14 @@ public:
 	DHASH addTextAbs(const char* name, const char* string, float fontSizePx, DRVector3 posInPx, bool cashed = true);
 	DHASH addTextRel(const char* name, const char* string, float fontSizePercent, DRVector3 posInPercent, bool cashed = true);
 	__inline__ void removeText(DHASH id) { mDeleteBuffer.push(id); }
-	__inline__ DHASH addText(const char* name, TextToRender* text) {
-		DHASH id = hashFromName(name);
-		if (mTextEntrys.s_add(id, text, NULL)) { 
-			return 0; 
-		} else {
-			lock(); mDirty = true; unlock();
-		}
-		return id;
-	}
+	DHASH addText(const char* name, TextToRender* text);
 
 	DRReturn update();
 	bool isGlyphBufferMaterialReady();
 	bool isGlyphMaterialFilled();
+
+	void registerObserverGoingDirty(UniLib::controller::DirtyCommand* command);
+	void unregisterObserverGoingDirty(UniLib::controller::DirtyCommand* command);
 
 	void enableTextRenderCall(UniLib::controller::GPUScheduler* gpuScheduler);
 	//! \param gpuScheduler if not nil, call remove render call on gpu scheduler
@@ -121,11 +118,14 @@ protected:
 
 	DRReturn updateMaterialTextureSize(UniLib::view::MaterialPtr material, DRVector2i textureDimension);
 
+	void goingDirty();
+
 	typedef UniLib::lib::MultithreadMap<DHASH,TextToRender*> TextMap;
 	typedef UniLib::lib::MultithreadQueue<DHASH> HashQueue;
 	
 	TextMap		mTextEntrys;
 	HashQueue   mDeleteBuffer;
+	std::list<UniLib::controller::DirtyCommand*> mObserverDirty;
 	DRHashList	mGlyphsWithFontSize;
 	Font*		mFont;
 	bool		mDirty;
